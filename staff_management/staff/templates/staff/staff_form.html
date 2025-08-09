@@ -1,0 +1,221 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ title }}</h1>
+    <a href="{% url 'staff_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- Basic Information Section -->
+            <h5 class="mb-3 text-primary"><i class="fas fa-user"></i> Basic Information</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.staff_id.id_for_label }}" class="form-label">Staff ID</label>
+                        {{ form.staff_id }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                        {{ form.first_name }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                        {{ form.last_name }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                        {{ form.email }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
+                        {{ form.phone }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.date_of_birth.id_for_label }}" class="form-label">Date of Birth</label>
+                        {{ form.date_of_birth }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.photo.id_for_label }}" class="form-label">Photo</label>
+                        {{ form.photo }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                {{ form.address }}
+            </div>
+            
+            <!-- Employment Information Section -->
+            <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-briefcase"></i> Employment Information</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.department.id_for_label }}" class="form-label">Department</label>
+                        {{ form.department }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.position.id_for_label }}" class="form-label">Position</label>
+                        {{ form.position }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.staff_type.id_for_label }}" class="form-label">Staff Type</label>
+                        {{ form.staff_type }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.staff_category.id_for_label }}" class="form-label">Staff Category</label>
+                        {{ form.staff_category }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.staff_grade.id_for_label }}" class="form-label">Staff Grade/Scale</label>
+                        {{ form.staff_grade }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.hire_date.id_for_label }}" class="form-label">Hire Date</label>
+                {{ form.hire_date }}
+            </div>
+            
+            <!-- Financial Information Section -->
+            <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-university"></i> Financial Information</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.bank_name.id_for_label }}" class="form-label">Bank Name</label>
+                        {{ form.bank_name }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.bank_account_number.id_for_label }}" class="form-label">Account Number</label>
+                        {{ form.bank_account_number }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.bank_sort_code.id_for_label }}" class="form-label">Bank Sort Code</label>
+                        {{ form.bank_sort_code }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.nassit_number.id_for_label }}" class="form-label">NASSIT Number</label>
+                        {{ form.nassit_number }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Education Information Section -->
+            <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-graduation-cap"></i> Education & Qualifications</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.highest_qualification.id_for_label }}" class="form-label">Highest Qualification</label>
+                        {{ form.highest_qualification }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.institution.id_for_label }}" class="form-label">Institution</label>
+                        {{ form.institution }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.graduation_year.id_for_label }}" class="form-label">Graduation Year</label>
+                        {{ form.graduation_year }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.other_qualifications.id_for_label }}" class="form-label">Other Qualifications</label>
+                {{ form.other_qualifications }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.publications.id_for_label }}" class="form-label">Publications & Research</label>
+                {{ form.publications }}
+                <div class="form-text">List publications, research papers, books, etc. (mainly for academic staff)</div>
+            </div>
+            
+            <!-- Next of Kin Information Section -->
+            <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-users"></i> Next of Kin Information</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.next_of_kin_name.id_for_label }}" class="form-label">Next of Kin Name</label>
+                        {{ form.next_of_kin_name }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.next_of_kin_relationship.id_for_label }}" class="form-label">Relationship</label>
+                        {{ form.next_of_kin_relationship }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.next_of_kin_phone.id_for_label }}" class="form-label">Next of Kin Phone</label>
+                {{ form.next_of_kin_phone }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.next_of_kin_address.id_for_label }}" class="form-label">Next of Kin Address</label>
+                {{ form.next_of_kin_address }}
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

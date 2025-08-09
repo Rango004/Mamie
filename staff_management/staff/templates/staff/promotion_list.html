@@ -1,0 +1,51 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Promotions</h1>
+    <a href="{% url 'promotion_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Process Promotion
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Staff Name</th>
+                        <th>From Position</th>
+                        <th>To Position</th>
+                        <th>Department Change</th>
+                        <th>Effective Date</th>
+                        <th>Date Processed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for promotion in promotions %}
+                    <tr>
+                        <td>{{ promotion.staff.full_name }}</td>
+                        <td>{{ promotion.old_position }}</td>
+                        <td><strong>{{ promotion.new_position }}</strong></td>
+                        <td>
+                            {% if promotion.old_department != promotion.new_department %}
+                                {{ promotion.old_department.name }} → {{ promotion.new_department.name }}
+                            {% else %}
+                                <span class="text-muted">Same Department</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ promotion.effective_date }}</td>
+                        <td>{{ promotion.created_at|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No promotions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

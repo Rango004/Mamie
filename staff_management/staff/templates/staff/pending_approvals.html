@@ -1,0 +1,73 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-clock"></i> Pending Approvals</h1>
+</div>
+
+<div class="row">
+    <!-- Pending Leave Applications -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt"></i> Pending Leave Applications ({{ pending_leaves.count }})</h5>
+            </div>
+            <div class="card-body">
+                {% for leave in pending_leaves %}
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6>{{ leave.staff.full_name }}</h6>
+                            <p class="mb-1"><strong>Type:</strong> {{ leave.get_leave_type_display }}</p>
+                            <p class="mb-1"><strong>Duration:</strong> {{ leave.start_date }} to {{ leave.end_date }}</p>
+                            <p class="mb-1"><strong>Days:</strong> {{ leave.days_requested }}</p>
+                            <p class="mb-1"><strong>Applied:</strong> {{ leave.applied_date|date:"M d, Y" }}</p>
+                            <p class="mb-0"><strong>Reason:</strong> {{ leave.reason|truncatewords:10 }}</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'approve_leave' leave.pk %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-check"></i> Review
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No pending leave applications.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Promotion Applications -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-arrow-up"></i> Pending Promotion Applications ({{ pending_promotions.count }})</h5>
+            </div>
+            <div class="card-body">
+                {% for promotion in pending_promotions %}
+                <div class="border-bottom pb-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6>{{ promotion.staff.full_name }}</h6>
+                            <p class="mb-1"><strong>From:</strong> {{ promotion.old_position }}</p>
+                            <p class="mb-1"><strong>To:</strong> {{ promotion.new_position }}</p>
+                            <p class="mb-1"><strong>Department:</strong> {{ promotion.new_department.name }}</p>
+                            <p class="mb-1"><strong>Grade:</strong> {{ promotion.old_grade }} → {{ promotion.new_grade }}</p>
+                            <p class="mb-0"><strong>Effective:</strong> {{ promotion.effective_date }}</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'approve_promotion' promotion.pk %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-check"></i> Review
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No pending promotion applications.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

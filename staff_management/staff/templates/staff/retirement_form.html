@@ -1,0 +1,53 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ title }}</h1>
+    <a href="{% url 'retirement_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.staff.id_for_label }}" class="form-label">Staff Member</label>
+                        {{ form.staff }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.retirement_type.id_for_label }}" class="form-label">Retirement Type</label>
+                        {{ form.retirement_type }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.retirement_date.id_for_label }}" class="form-label">Retirement Date</label>
+                {{ form.retirement_date }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.benefits_info.id_for_label }}" class="form-label">Benefits Information</label>
+                {{ form.benefits_info }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                {{ form.notes }}
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Process Retirement
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

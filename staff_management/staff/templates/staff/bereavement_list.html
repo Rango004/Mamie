@@ -1,0 +1,49 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Bereavement Leave</h1>
+    <a href="{% url 'bereavement_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Record Bereavement Leave
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Staff Name</th>
+                        <th>Deceased Name</th>
+                        <th>Relationship</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days Granted</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bereavement in bereavements %}
+                    <tr>
+                        <td>{{ bereavement.staff.full_name }}</td>
+                        <td>{{ bereavement.deceased_name }}</td>
+                        <td>{{ bereavement.relationship }}</td>
+                        <td>{{ bereavement.start_date }}</td>
+                        <td>{{ bereavement.end_date }}</td>
+                        <td>{{ bereavement.days_granted }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ bereavement.get_status_display }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No bereavement records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
