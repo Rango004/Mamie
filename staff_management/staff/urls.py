@@ -30,6 +30,9 @@ urlpatterns = [
     
     # Staff self-service URLs
     path('my-profile/', views.my_profile, name='my_profile'),
+    path('apply-promotion/', views.staff_apply_promotion, name='staff_apply_promotion'),
+    path('update-photo/', views.update_profile_photo, name='update_profile_photo'),
+    path('promotions/<int:pk>/approve/', views.approve_promotion, name='approve_promotion'),
     
     # School URLs
     path('schools/', views.school_list, name='school_list'),

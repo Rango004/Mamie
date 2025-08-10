@@ -19,7 +19,8 @@
                         <th>To Position</th>
                         <th>Department Change</th>
                         <th>Effective Date</th>
-                        <th>Date Processed</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -36,11 +37,22 @@
                             {% endif %}
                         </td>
                         <td>{{ promotion.effective_date }}</td>
-                        <td>{{ promotion.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <span class="badge bg-{% if promotion.status == 'approved' %}success{% elif promotion.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                {{ promotion.status|title }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if promotion.status == 'pending' and is_hrmo or user.is_superuser %}
+                                <a href="{% url 'approve_promotion' promotion.pk %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-check"></i> Review
+                                </a>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center">No promotions found.</td>
+                        <td colspan="7" class="text-center">No promotions found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -78,28 +78,43 @@
     </div>
     
     <div class="col-md-4">
-        {% if staff.photo %}
         <div class="card">
             <div class="card-header">
                 <h5>Photo</h5>
             </div>
             <div class="card-body text-center">
-                <img src="{{ staff.photo.url }}" alt="Staff Photo" class="img-fluid rounded" style="max-height: 200px;">
+                {% if staff.photo %}
+                    <img src="{{ staff.photo.url }}" alt="Staff Photo" class="img-fluid rounded mb-3" style="max-height: 200px;">
+                {% else %}
+                    <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" style="height: 200px;">
+                        <i class="fas fa-user fa-4x text-muted"></i>
+                    </div>
+                {% endif %}
+                
+                <!-- Photo upload form -->
+                <form method="post" action="{% url 'update_profile_photo' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <input type="file" name="photo" class="form-control form-control-sm" accept="image/*">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-upload"></i> Update Photo
+                    </button>
+                </form>
             </div>
         </div>
-        {% else %}
-        <div class="card">
+        
+        <!-- Apply for Promotion -->
+        <div class="card mt-3">
             <div class="card-header">
-                <h5>Photo</h5>
+                <h5>Actions</h5>
             </div>
             <div class="card-body text-center">
-                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;">
-                    <i class="fas fa-user fa-4x text-muted"></i>
-                </div>
-                <p class="text-muted mt-2">No photo available</p>
+                <a href="{% url 'staff_apply_promotion' %}" class="btn btn-success btn-sm mb-2">
+                    <i class="fas fa-arrow-up"></i> Apply for Promotion
+                </a>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -645,3 +645,99 @@ def export_staff_pdf(request):
     doc.build(story)
     
     return response
+
+# Staff self-service views
+@login_required
+def staff_apply_promotion(request):
+    try:
+        staff = Staff.objects.get(email=request.user.email)
+    except Staff.DoesNotExist:
+        messages.error(request, 'Staff record not found.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        form = PromotionForm(request.POST)
+        if form.is_valid():
+            try:
+                promotion = form.save(commit=False)
+                promotion.staff = staff
+                promotion.old_position = staff.position
+                promotion.old_department = staff.department
+                promotion.old_grade = staff.staff_grade
+                promotion.status = 'pending'
+                promotion.save()
+                messages.success(request, 'Promotion application submitted successfully!')
+                return redirect('promotion_list')
+            except Exception as e:
+                print(f"Error applying for promotion: {e}")
+                messages.error(request, f'Error submitting promotion application: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = PromotionForm(initial={
+            'staff': staff,
+            'old_position': staff.position,
+            'old_department': staff.department,
+            'old_grade': staff.staff_grade
+        })
+        # Make fields readonly for staff
+        form.fields['staff'].widget.attrs['readonly'] = True
+        form.fields['staff'].initial = staff
+        form.fields['old_position'].widget.attrs['readonly'] = True
+        form.fields['old_department'].widget.attrs['readonly'] = True
+        form.fields['old_grade'].widget.attrs['readonly'] = True
+    
+    return render(request, 'staff/staff_promotion_form.html', {'form': form, 'staff': staff})
+
+@login_required
+def update_profile_photo(request):
+    try:
+        staff = Staff.objects.get(email=request.user.email)
+    except Staff.DoesNotExist:
+        messages.error(request, 'Staff record not found.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST' and request.FILES.get('photo'):
+        try:
+            staff.photo = request.FILES['photo']
+            staff.save()
+            messages.success(request, 'Profile photo updated successfully!')
+        except Exception as e:
+            messages.error(request, f'Error updating photo: {str(e)}')
+    
+    return redirect('my_profile')
+
+@login_required
+def approve_promotion(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    promotion = get_object_or_404(Promotion, pk=pk)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'approve':
+            promotion.status = 'approved'
+            promotion.approved_by = request.user
+            promotion.approved_date = datetime.now()
+            
+            # Update staff record
+            staff = promotion.staff
+            staff.position = promotion.new_position
+            staff.department = promotion.new_department
+            staff.staff_grade = promotion.new_grade
+            staff.save()
+            
+            messages.success(request, f'Promotion for {staff.full_name} approved successfully!')
+        elif action == 'reject':
+            promotion.status = 'rejected'
+            promotion.rejection_reason = request.POST.get('rejection_reason', '')
+            messages.success(request, f'Promotion for {promotion.staff.full_name} rejected.')
+        
+        promotion.save()
+        return redirect('promotion_list')
+    
+    return render(request, 'staff/approve_promotion.html', {'promotion': promotion})
