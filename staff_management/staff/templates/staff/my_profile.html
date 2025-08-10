@@ -1,0 +1,105 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>My Profile</h1>
+    <a href="{% url 'print_id_card' staff.pk %}" class="btn btn-primary">
+        <i class="fas fa-id-card"></i> Download ID Card
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>Staff ID:</strong><br>
+                            {{ staff.staff_id }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Full Name:</strong><br>
+                            {{ staff.full_name }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Email:</strong><br>
+                            {{ staff.email }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Phone:</strong><br>
+                            {{ staff.phone }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>Position:</strong><br>
+                            {{ staff.position }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Staff Type:</strong><br>
+                            <span class="badge bg-info">{{ staff.get_staff_type_display }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Department:</strong><br>
+                            {{ staff.department.name }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>School:</strong><br>
+                            {{ staff.department.school.name }}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>Hire Date:</strong><br>
+                            {{ staff.hire_date }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>Status:</strong><br>
+                            <span class="status-{{ staff.status }}">{{ staff.get_status_display }}</span>
+                        </div>
+                        {% if staff.leadership_role != 'none' %}
+                        <div class="mb-3">
+                            <strong>Leadership Role:</strong><br>
+                            <span class="badge bg-warning text-dark">{{ staff.get_leadership_role_display }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if staff.photo %}
+        <div class="card">
+            <div class="card-header">
+                <h5>Photo</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ staff.photo.url }}" alt="Staff Photo" class="img-fluid rounded" style="max-height: 200px;">
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-header">
+                <h5>Photo</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <i class="fas fa-user fa-4x text-muted"></i>
+                </div>
+                <p class="text-muted mt-2">No photo available</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -79,6 +79,23 @@ class Staff(models.Model):
         ('j7', 'Junior Scale 7'),
         ('j8', 'Junior Scale 8'),
     ]
+    
+    LEADERSHIP_ROLES = [
+        ('none', 'No Leadership Role'),
+        ('vice_chancellor', 'Vice Chancellor'),
+        ('dvc_academic', 'Deputy Vice Chancellor (Academic)'),
+        ('dvc_admin', 'Deputy Vice Chancellor (Administration)'),
+        ('registrar', 'Registrar'),
+        ('bursar', 'Bursar'),
+        ('dean', 'Dean of School'),
+        ('hod', 'Head of Department'),
+        ('director', 'Director'),
+        ('coordinator', 'Coordinator'),
+        ('unit_head', 'Unit Head'),
+        ('librarian', 'Chief Librarian'),
+        ('security_head', 'Head of Security'),
+        ('maintenance_head', 'Head of Maintenance'),
+    ]
 
     # Basic Information
     staff_id = models.CharField(max_length=20, unique=True)
@@ -101,6 +118,7 @@ class Staff(models.Model):
     staff_type = models.CharField(max_length=20, choices=STAFF_TYPES)
     staff_category = models.CharField(max_length=20, choices=STAFF_CATEGORIES)
     staff_grade = models.CharField(max_length=10, choices=GRADE_CHOICES)
+    leadership_role = models.CharField(max_length=30, choices=LEADERSHIP_ROLES, default='none')
     hire_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     

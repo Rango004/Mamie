@@ -28,6 +28,9 @@ urlpatterns = [
     path('bereavements/', views.bereavement_list, name='bereavement_list'),
     path('bereavements/add/', views.bereavement_create, name='bereavement_create'),
     
+    # Staff self-service URLs
+    path('my-profile/', views.my_profile, name='my_profile'),
+    
     # School URLs
     path('schools/', views.school_list, name='school_list'),
     path('schools/add/', views.school_create, name='school_create'),
@@ -40,16 +43,8 @@ urlpatterns = [
     path('departments/<int:pk>/edit/', views.department_update, name='department_update'),
     path('departments/<int:pk>/delete/', views.department_delete, name='department_delete'),
     
-    # Workflow URLs
-    path('pending-approvals/', views.pending_approvals, name='pending_approvals'),
-    path('approve-leave/<int:pk>/', views.approve_leave, name='approve_leave'),
-    path('approve-promotion/<int:pk>/', views.approve_promotion, name='approve_promotion'),
-    path('apply-leave/', views.staff_apply_leave, name='staff_apply_leave'),
-    path('my-leave-applications/', views.my_leave_applications, name='my_leave_applications'),
-    path('workflow-history/', views.workflow_history, name='workflow_history'),
-    path('notifications/', views.notifications, name='notifications'),
-    
-    # HRMO Management URLs
-    path('hrmos/', views.hrmo_list, name='hrmo_list'),
-    path('hrmos/add/', views.hrmo_create, name='hrmo_create'),
+    # Export URLs
+    path('export/staff/csv/', views.export_staff_csv, name='export_staff_csv'),
+    path('export/staff/pdf/', views.export_staff_pdf, name='export_staff_pdf'),
+
 ]

@@ -12,6 +12,18 @@
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
+            
+            <!-- Display form errors -->
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    <h6>Please correct the following errors:</h6>
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <div>{{ field }}: {{ error }}</div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
@@ -53,6 +65,21 @@
                     <div class="mb-3">
                         <label for="{{ form.new_department.id_for_label }}" class="form-label">New Department</label>
                         {{ form.new_department }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.old_grade.id_for_label }}" class="form-label">Current Grade</label>
+                        {{ form.old_grade }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.new_grade.id_for_label }}" class="form-label">New Grade</label>
+                        {{ form.new_grade }}
                     </div>
                 </div>
             </div>

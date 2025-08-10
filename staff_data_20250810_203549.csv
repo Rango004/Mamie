@@ -1,0 +1,5 @@
+Staff ID,Full Name,Email,Phone,Department,Position,Leadership Role,Staff Type,Grade,Hire Date,Status
+ENG001,John Smith,john.smith@university.edu,+1234567890,Computer Science,Professor,No Leadership Role,Academic Staff,5,2015-08-01,Active
+HR001,Emily Wilson,emily.wilson@university.edu,+1234567896,Human Resources,HR Manager,No Leadership Role,Administrative Staff,8.5,2020-03-01,Active
+ENG002,Sarah Johnson,sarah.johnson@university.edu,+1234567892,Mechanical Engineering,Professor,No Leadership Role,Academic Staff,5,2018-01-15,Active
+BUS001,Robert Davis,robert.davis@university.edu,+1234567894,Business Administration,Department Head,No Leadership Role,Academic Staff,7,2010-09-01,Active

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import School, Department, Staff, Leave, Promotion, Retirement, Bereavement, HRMO, Notification, WorkflowAction
+from .models import School, Department, Staff, Leave, Promotion, Retirement, Bereavement, HRMO
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
@@ -46,15 +46,3 @@ class HRMOAdmin(admin.ModelAdmin):
     list_display = ['staff', 'user', 'is_active', 'created_at']
     list_filter = ['is_active']
     search_fields = ['staff__first_name', 'staff__last_name', 'user__username']
-
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ['title', 'recipient', 'notification_type', 'is_read', 'created_at']
-    list_filter = ['notification_type', 'is_read']
-    search_fields = ['title', 'recipient__username']
-
-@admin.register(WorkflowAction)
-class WorkflowActionAdmin(admin.ModelAdmin):
-    list_display = ['action_type', 'performed_by', 'staff_affected', 'timestamp']
-    list_filter = ['action_type']
-    search_fields = ['performed_by__username', 'staff_affected__first_name', 'staff_affected__last_name']

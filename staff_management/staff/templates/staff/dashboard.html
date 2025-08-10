@@ -1,149 +1,276 @@
 {% extends 'staff/base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Dashboard</h1>
-</div>
+{% if is_staff_view %}
+    <!-- Staff Dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>My Dashboard</h1>
+        <div>
+            {% if staff %}
+                <span class="badge bg-info">{{ staff.get_staff_type_display }}</span>
+                <span class="badge bg-success">{{ staff.department.name }}</span>
+            {% endif %}
+        </div>
+    </div>
 
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-users fa-2x mb-2"></i>
-                <h3>{{ total_staff }}</h3>
-                <p>Active Staff</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-building fa-2x mb-2"></i>
-                <h3>{{ total_departments }}</h3>
-                <p>Departments</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-university fa-2x mb-2"></i>
-                <h3>{{ total_schools }}</h3>
-                <p>Schools</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-calendar-check fa-2x mb-2"></i>
-                <h3>{{ pending_leaves }}</h3>
-                <p>Pending Leaves</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Additional Workflow Statistics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-arrow-up fa-2x mb-2"></i>
-                <h3>{{ pending_promotions }}</h3>
-                <p>Pending Promotions</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-user-tie fa-2x mb-2"></i>
-                <h3>{{ total_hrmos }}</h3>
-                <p>Active HRMOs</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-check-circle fa-2x mb-2"></i>
-                <h3>{{ approved_leaves_this_month }}</h3>
-                <p>Approved This Month</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stats-card">
-            <div class="card-body text-center">
-                <i class="fas fa-clock fa-2x mb-2"></i>
-                <h3>{{ pending_leaves|add:pending_promotions }}</h3>
-                <p>Total Pending</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Staff by Department -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Staff by Department</h5>
-            </div>
-            <div class="card-body">
-                {% for dept in staff_by_dept %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>{{ dept.name }}</span>
-                    <span class="badge bg-primary">{{ dept.staff_count }}</span>
+    {% if staff %}
+    <!-- Personal Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                    <h3>{{ my_leaves|length }}</h3>
+                    <p>Total Leaves</p>
                 </div>
-                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h3>{{ pending_leaves }}</h3>
+                    <p>Pending Leaves</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-arrow-up fa-2x mb-2"></i>
+                    <h3>{{ my_promotions|length }}</h3>
+                    <p>Promotions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-user fa-2x mb-2"></i>
+                    <h3>{{ staff.staff_id }}</h3>
+                    <p>Staff ID</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Recent Activities -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Recent Leave Applications</h5>
-            </div>
-            <div class="card-body">
-                {% for leave in recent_leaves %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div>
-                        <strong>{{ leave.staff.full_name }}</strong><br>
-                        <small>{{ leave.leave_type|title }} - {{ leave.start_date }}</small>
+    <div class="row">
+        <!-- My Recent Leaves -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>My Recent Leaves</h5>
+                    <a href="/leaves/add/" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> Apply
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% for leave in my_leaves %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ leave.get_leave_type_display }}</strong><br>
+                            <small>{{ leave.start_date }} to {{ leave.end_date }}</small>
+                        </div>
+                        <span class="badge bg-{% if leave.status == 'approved' %}success{% elif leave.status == 'pending' %}warning{% else %}danger{% endif %}">
+                            {{ leave.status|title }}
+                        </span>
                     </div>
-                    <span class="badge bg-{% if leave.status == 'approved' %}success{% elif leave.status == 'pending' %}warning{% else %}danger{% endif %}">
-                        {{ leave.status|title }}
-                    </span>
+                    {% empty %}
+                    <p class="text-muted">No leave applications yet.</p>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Recent Promotions</h5>
-            </div>
-            <div class="card-body">
-                {% for promotion in recent_promotions %}
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div>
-                        <strong>{{ promotion.staff.full_name }}</strong><br>
-                        <small>{{ promotion.old_position }} → {{ promotion.new_position }}</small>
-                    </div>
-                    <small class="text-muted">{{ promotion.effective_date }}</small>
+        <!-- My Profile Summary -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>My Profile</h5>
                 </div>
-                {% endfor %}
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Name:</strong> {{ staff.full_name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Position:</strong> {{ staff.position }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Department:</strong> {{ staff.department.name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>School:</strong> {{ staff.department.school.name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Hire Date:</strong> {{ staff.hire_date }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Status:</strong> 
+                        <span class="status-{{ staff.status }}">{{ staff.get_status_display }}</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/staff/{{ staff.pk }}/id-card/" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-id-card"></i> Download ID Card
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    {% if my_promotions %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>My Promotion History</h5>
+                </div>
+                <div class="card-body">
+                    {% for promotion in my_promotions %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ promotion.old_position }} → {{ promotion.new_position }}</strong><br>
+                            <small>{{ promotion.old_department.name }} → {{ promotion.new_department.name }}</small>
+                        </div>
+                        <small class="text-muted">{{ promotion.effective_date }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> Staff record not found. Please contact HR.
+    </div>
+    {% endif %}
+
+{% else %}
+    <!-- HRMO/Admin Dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Dashboard</h1>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h3>{{ total_staff }}</h3>
+                    <p>Active Staff</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-building fa-2x mb-2"></i>
+                    <h3>{{ total_departments }}</h3>
+                    <p>Departments</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-university fa-2x mb-2"></i>
+                    <h3>{{ total_schools }}</h3>
+                    <p>Schools</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                    <h3>{{ pending_leaves }}</h3>
+                    <p>Pending Leaves</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Staff by Department -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Staff by Department</h5>
+                </div>
+                <div class="card-body">
+                    {% for dept in staff_by_dept %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ dept.name }}</span>
+                        <span class="badge bg-primary">{{ dept.staff_count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Leadership Roles -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Leadership Roles</h5>
+                </div>
+                <div class="card-body">
+                    {% for role in leadership_roles %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ role.leadership_role_display }}</span>
+                        <span class="badge bg-warning text-dark">{{ role.count }}</span>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No leadership roles assigned.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Leave Applications</h5>
+                </div>
+                <div class="card-body">
+                    {% for leave in recent_leaves %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ leave.staff.full_name }}</strong><br>
+                            <small>{{ leave.leave_type|title }} - {{ leave.start_date }}</small>
+                        </div>
+                        <span class="badge bg-{% if leave.status == 'approved' %}success{% elif leave.status == 'pending' %}warning{% else %}danger{% endif %}">
+                            {{ leave.status|title }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Promotions</h5>
+                </div>
+                <div class="card-body">
+                    {% for promotion in recent_promotions %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ promotion.staff.full_name }}</strong><br>
+                            <small>{{ promotion.old_position }} → {{ promotion.new_position }}</small>
+                        </div>
+                        <small class="text-muted">{{ promotion.effective_date }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
 {% endblock %}

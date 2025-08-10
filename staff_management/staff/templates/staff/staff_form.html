@@ -13,6 +13,18 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             
+            <!-- Display form errors -->
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    <h6>Please correct the following errors:</h6>
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <div>{{ field }}: {{ error }}</div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
             <!-- Basic Information Section -->
             <h5 class="mb-3 text-primary"><i class="fas fa-user"></i> Basic Information</h5>
             <div class="row">
@@ -109,10 +121,22 @@
                 </div>
             </div>
             
-            <div class="mb-3">
-                <label for="{{ form.hire_date.id_for_label }}" class="form-label">Hire Date</label>
-                {{ form.hire_date }}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.leadership_role.id_for_label }}" class="form-label">Leadership Role</label>
+                        {{ form.leadership_role }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.hire_date.id_for_label }}" class="form-label">Hire Date</label>
+                        {{ form.hire_date }}
+                    </div>
+                </div>
             </div>
+            
+
             
             <!-- Financial Information Section -->
             <h5 class="mt-4 mb-3 text-primary"><i class="fas fa-university"></i> Financial Information</h5>

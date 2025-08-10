@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Departments</h1>
-    <a href="{% url 'department_create' %}" class="btn btn-primary">
+    <a href="/departments/add/" class="btn btn-primary">
         <i class="fas fa-plus"></i> Add Department
     </a>
 </div>
@@ -16,9 +16,8 @@
                     <tr>
                         <th>Name</th>
                         <th>Code</th>
-                        <th>Type</th>
                         <th>School</th>
-                        <th>Parent Department</th>
+                        <th>Type</th>
                         <th>Staff Count</th>
                         <th>Actions</th>
                     </tr>
@@ -28,26 +27,25 @@
                     <tr>
                         <td>{{ department.name }}</td>
                         <td>{{ department.code }}</td>
-                        <td>
-                            <span class="badge bg-{% if department.department_type == 'academic' %}primary{% else %}secondary{% endif %}">
-                                {{ department.get_department_type_display }}
-                            </span>
-                        </td>
                         <td>{{ department.school.name|default:"N/A" }}</td>
-                        <td>{{ department.parent_department.name|default:"N/A" }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ department.get_department_type_display }}</span>
+                        </td>
                         <td>{{ department.staff_count }}</td>
                         <td>
-                            <a href="{% url 'department_update' department.pk %}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'department_delete' department.pk %}" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            <div class="btn-group" role="group">
+                                <a href="/departments/{{ department.pk }}/edit/" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="/departments/{{ department.pk }}/delete/" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No departments found.</td>
+                        <td colspan="6" class="text-center">No departments found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Staff, Leave, Promotion, Retirement, Bereavement, Department, School, HRMO
+from .models import Staff, Leave, Promotion, Retirement, Bereavement, Department, School, School, HRMO
 from django.contrib.auth.models import User
 
 class StaffForm(forms.ModelForm):
@@ -8,7 +8,7 @@ class StaffForm(forms.ModelForm):
         fields = ['staff_id', 'first_name', 'last_name', 'email', 'phone', 'date_of_birth',
                  'address', 'next_of_kin_name', 'next_of_kin_relationship', 'next_of_kin_phone',
                  'next_of_kin_address', 'department', 'position', 'staff_type', 'staff_category',
-                 'staff_grade', 'hire_date', 'bank_name', 'bank_account_number', 'bank_sort_code',
+                 'staff_grade', 'leadership_role', 'hire_date', 'bank_name', 'bank_account_number', 'bank_sort_code',
                  'nassit_number', 'highest_qualification', 'institution', 'graduation_year',
                  'other_qualifications', 'publications', 'photo']
         widgets = {
@@ -30,6 +30,7 @@ class StaffForm(forms.ModelForm):
             'staff_type': forms.Select(attrs={'class': 'form-control'}),
             'staff_category': forms.Select(attrs={'class': 'form-control'}),
             'staff_grade': forms.Select(attrs={'class': 'form-control'}),
+            'leadership_role': forms.Select(attrs={'class': 'form-control'}),
             'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
             'bank_account_number': forms.TextInput(attrs={'class': 'form-control'}),
             'bank_sort_code': forms.TextInput(attrs={'class': 'form-control'}),
@@ -94,6 +95,26 @@ class BereavementForm(forms.ModelForm):
             'deceased_name': forms.TextInput(attrs={'class': 'form-control'}),
             'relationship': forms.TextInput(attrs={'class': 'form-control'}),
             'days_granted': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+class SchoolForm(forms.ModelForm):
+    class Meta:
+        model = School
+        fields = ['name', 'code']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'code': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+class DepartmentForm(forms.ModelForm):
+    class Meta:
+        model = Department
+        fields = ['name', 'code', 'school', 'department_type']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'code': forms.TextInput(attrs={'class': 'form-control'}),
+            'school': forms.Select(attrs={'class': 'form-control'}),
+            'department_type': forms.Select(attrs={'class': 'form-control'}),
         }
 
 class SchoolForm(forms.ModelForm):

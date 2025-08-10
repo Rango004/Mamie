@@ -2,86 +2,155 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpResponse
-from django.template.loader import get_template
-from .models import Staff, Department, School, Leave, Promotion, Retirement, Bereavement, HRMO, Notification, WorkflowAction
-from .forms import (StaffForm, LeaveForm, PromotionForm, RetirementForm, BereavementForm, 
-                   SchoolForm, DepartmentForm, LeaveApprovalForm, PromotionApprovalForm, 
-                   StaffLeaveApplicationForm, HRMOForm)
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.utils import timezone
-from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+from .models import Staff, Department, School, Leave, Promotion, Retirement, Bereavement, HRMO
+from .forms import StaffForm, LeaveForm, PromotionForm, RetirementForm, BereavementForm, SchoolForm, DepartmentForm
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.utils import ImageReader
-from PIL import Image
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+import csv
+from datetime import datetime
 
+@login_required
 def dashboard(request):
-    # Statistics
-    total_staff = Staff.objects.filter(status='active').count()
-    total_departments = Department.objects.count()
-    total_schools = School.objects.count()
-    pending_leaves = Leave.objects.filter(status='pending').count()
-    pending_promotions = Promotion.objects.filter(status='pending').count()
-    total_hrmos = HRMO.objects.filter(is_active=True).count()
+    # Check if user is HRMO or superuser
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
     
-    # Staff by department
-    staff_by_dept = Department.objects.annotate(
-        staff_count=Count('staff', filter=Q(staff__status='active'))
-    ).order_by('-staff_count')[:5]
+    if is_hrmo:
+        # Full dashboard for HRMO/Admin
+        total_staff = Staff.objects.filter(status='active').count()
+        total_departments = Department.objects.count()
+        total_schools = School.objects.count()
+        pending_leaves = Leave.objects.filter(status='pending').count()
+        
+        staff_by_dept = Department.objects.annotate(
+            staff_count=Count('staff', filter=Q(staff__status='active'))
+        ).order_by('-staff_count')[:5]
+        
+        # Leadership roles summary
+        leadership_roles_raw = Staff.objects.filter(
+            status='active'
+        ).exclude(
+            leadership_role='none'
+        ).values(
+            'leadership_role'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')
+        
+        # Format leadership roles for display
+        leadership_roles = []
+        for role in leadership_roles_raw:
+            role_display = role['leadership_role'].replace('_', ' ').title()
+            leadership_roles.append({
+                'leadership_role': role['leadership_role'],
+                'leadership_role_display': role_display,
+                'count': role['count']
+            })
+        
+        recent_leaves = Leave.objects.select_related('staff').order_by('-applied_date')[:5]
+        recent_promotions = Promotion.objects.select_related('staff').order_by('-created_at')[:5]
+        
+        context = {
+            'total_staff': total_staff,
+            'total_departments': total_departments,
+            'total_schools': total_schools,
+            'pending_leaves': pending_leaves,
+            'staff_by_dept': staff_by_dept,
+            'leadership_roles': leadership_roles,
+            'recent_leaves': recent_leaves,
+            'recent_promotions': recent_promotions,
+        }
+    else:
+        # Limited dashboard for regular staff
+        try:
+            staff = Staff.objects.get(email=request.user.email)
+            my_leaves = Leave.objects.filter(staff=staff).order_by('-applied_date')[:5]
+            my_promotions = Promotion.objects.filter(staff=staff).order_by('-created_at')[:3]
+            pending_leaves = Leave.objects.filter(staff=staff, status='pending').count()
+            
+            context = {
+                'staff': staff,
+                'my_leaves': my_leaves,
+                'my_promotions': my_promotions,
+                'pending_leaves': pending_leaves,
+                'is_staff_view': True,
+            }
+        except Staff.DoesNotExist:
+            messages.error(request, 'Staff record not found. Please contact HR.')
+            context = {'is_staff_view': True}
     
-    # Recent activities
-    recent_leaves = Leave.objects.select_related('staff').order_by('-applied_date')[:5]
-    recent_promotions = Promotion.objects.select_related('staff').order_by('-created_at')[:5]
-    
-    # Workflow statistics
-    approved_leaves_this_month = Leave.objects.filter(
-        status='approved',
-        approved_date__month=timezone.now().month
-    ).count()
-    
-    context = {
-        'total_staff': total_staff,
-        'total_departments': total_departments,
-        'total_schools': total_schools,
-        'pending_leaves': pending_leaves,
-        'pending_promotions': pending_promotions,
-        'total_hrmos': total_hrmos,
-        'approved_leaves_this_month': approved_leaves_this_month,
-        'staff_by_dept': staff_by_dept,
-        'recent_leaves': recent_leaves,
-        'recent_promotions': recent_promotions,
-    }
     return render(request, 'staff/dashboard.html', context)
 
+@login_required
 def staff_list(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     staff = Staff.objects.select_related('department__school').filter(status='active')
     return render(request, 'staff/staff_list.html', {'staff': staff})
 
+@login_required
 def staff_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = StaffForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Staff member added successfully!')
-            return redirect('staff_list')
+            try:
+                staff = form.save()
+                messages.success(request, f'Staff member {staff.full_name} added successfully!')
+                return redirect('staff_list')
+            except Exception as e:
+                print(f"Error saving staff: {e}")
+                messages.error(request, f'Error saving staff member: {str(e)}')
+        else:
+            print(f"Form validation errors: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = StaffForm()
     return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Add Staff'})
 
+@login_required
 def staff_update(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     staff = get_object_or_404(Staff, pk=pk)
     if request.method == 'POST':
         form = StaffForm(request.POST, request.FILES, instance=staff)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Staff member updated successfully!')
-            return redirect('staff_list')
+            try:
+                updated_staff = form.save()
+                messages.success(request, f'Staff member {updated_staff.full_name} updated successfully!')
+                return redirect('staff_list')
+            except Exception as e:
+                print(f"Error updating staff: {e}")
+                messages.error(request, f'Error updating staff member: {str(e)}')
+        else:
+            print(f"Form validation errors: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = StaffForm(instance=staff)
     return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Update Staff'})
 
+@login_required
 def staff_delete(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     staff = get_object_or_404(Staff, pk=pk)
     if request.method == 'POST':
         staff.delete()
@@ -89,67 +158,117 @@ def staff_delete(request, pk):
         return redirect('staff_list')
     return render(request, 'staff/staff_confirm_delete.html', {'staff': staff})
 
+@login_required
 def leave_list(request):
-    leaves = Leave.objects.select_related('staff').order_by('-applied_date')
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    
+    if is_hrmo:
+        leaves = Leave.objects.select_related('staff').order_by('-applied_date')
+    else:
+        # Regular staff can only see their own leaves
+        try:
+            staff = Staff.objects.get(email=request.user.email)
+            leaves = Leave.objects.filter(staff=staff).order_by('-applied_date')
+        except Staff.DoesNotExist:
+            messages.error(request, 'Staff record not found.')
+            return redirect('dashboard')
+    
     return render(request, 'staff/leave_list.html', {'leaves': leaves})
 
+@login_required
 def leave_create(request):
     if request.method == 'POST':
         form = LeaveForm(request.POST)
         if form.is_valid():
-            leave = form.save()
-            # Send notification to HRMOs
-            leave.send_application_notification()
-            
-            # Create workflow action
-            WorkflowAction.objects.create(
-                action_type='leave_applied',
-                performed_by=request.user,
-                staff_affected=leave.staff,
-                description=f'Leave application submitted for {leave.get_leave_type_display()}',
-                content_type='leave',
-                object_id=leave.id
-            )
-            
-            messages.success(request, 'Leave application submitted successfully! HRMOs have been notified.')
+            leave = form.save(commit=False)
+            # If not HRMO, set staff to current user's staff record
+            if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+                try:
+                    staff = Staff.objects.get(email=request.user.email)
+                    leave.staff = staff
+                except Staff.DoesNotExist:
+                    messages.error(request, 'Staff record not found.')
+                    return redirect('dashboard')
+            leave.save()
+            messages.success(request, 'Leave application submitted successfully!')
             return redirect('leave_list')
     else:
         form = LeaveForm()
+        # If not HRMO, hide staff field
+        if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+            form.fields.pop('staff', None)
+    
     return render(request, 'staff/leave_form.html', {'form': form, 'title': 'Apply for Leave'})
 
+@login_required
 def promotion_list(request):
-    promotions = Promotion.objects.select_related('staff').order_by('-created_at')
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    
+    if is_hrmo:
+        promotions = Promotion.objects.select_related('staff').order_by('-created_at')
+    else:
+        # Regular staff can only see their own promotions
+        try:
+            staff = Staff.objects.get(email=request.user.email)
+            promotions = Promotion.objects.filter(staff=staff).order_by('-created_at')
+        except Staff.DoesNotExist:
+            messages.error(request, 'Staff record not found.')
+            return redirect('dashboard')
+    
     return render(request, 'staff/promotion_list.html', {'promotions': promotions})
 
+@login_required
 def promotion_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = PromotionForm(request.POST)
         if form.is_valid():
-            promotion = form.save()
-            # Send notification to HRMOs
-            promotion.send_application_notification()
-            
-            # Create workflow action
-            WorkflowAction.objects.create(
-                action_type='promotion_applied',
-                performed_by=request.user,
-                staff_affected=promotion.staff,
-                description=f'Promotion application submitted: {promotion.old_position} to {promotion.new_position}',
-                content_type='promotion',
-                object_id=promotion.id
-            )
-            
-            messages.success(request, 'Promotion application submitted successfully! HRMOs have been notified.')
-            return redirect('promotion_list')
+            try:
+                promotion = form.save(commit=False)
+                promotion.status = 'approved'  # Auto-approve for HRMO
+                promotion.approved_by = request.user
+                promotion.approved_date = datetime.now()
+                promotion.save()
+                
+                # Update staff position, department, and grade
+                staff = promotion.staff
+                staff.position = promotion.new_position
+                staff.department = promotion.new_department
+                staff.staff_grade = promotion.new_grade
+                staff.save()
+                
+                messages.success(request, f'Promotion for {staff.full_name} processed successfully!')
+                return redirect('promotion_list')
+            except Exception as e:
+                print(f"Error processing promotion: {e}")
+                messages.error(request, f'Error processing promotion: {str(e)}')
+        else:
+            print(f"Promotion form validation errors: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = PromotionForm()
-    return render(request, 'staff/promotion_form.html', {'form': form, 'title': 'Submit Promotion Application'})
+    return render(request, 'staff/promotion_form.html', {'form': form, 'title': 'Process Promotion'})
 
+@login_required
 def retirement_list(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     retirements = Retirement.objects.select_related('staff').order_by('-created_at')
     return render(request, 'staff/retirement_list.html', {'retirements': retirements})
 
+@login_required
 def retirement_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = RetirementForm(request.POST)
         if form.is_valid():
@@ -158,63 +277,165 @@ def retirement_create(request):
             staff = retirement.staff
             staff.status = 'retired'
             staff.save()
-            
-            # Send retirement notification (handled in form save method)
-            messages.success(request, 'Retirement processed successfully! Notifications have been sent.')
+            messages.success(request, 'Retirement processed successfully!')
             return redirect('retirement_list')
     else:
         form = RetirementForm()
     return render(request, 'staff/retirement_form.html', {'form': form, 'title': 'Process Retirement'})
 
+@login_required
 def bereavement_list(request):
-    bereavements = Bereavement.objects.select_related('staff').order_by('-created_at')
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    
+    if is_hrmo:
+        bereavements = Bereavement.objects.select_related('staff').order_by('-created_at')
+    else:
+        # Regular staff can only see their own bereavement records
+        try:
+            staff = Staff.objects.get(email=request.user.email)
+            bereavements = Bereavement.objects.filter(staff=staff).order_by('-created_at')
+        except Staff.DoesNotExist:
+            messages.error(request, 'Staff record not found.')
+            return redirect('dashboard')
+    
     return render(request, 'staff/bereavement_list.html', {'bereavements': bereavements})
 
+@login_required
 def bereavement_create(request):
     if request.method == 'POST':
         form = BereavementForm(request.POST)
         if form.is_valid():
-            form.save()
+            bereavement = form.save(commit=False)
+            # If not HRMO, set staff to current user's staff record
+            if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+                try:
+                    staff = Staff.objects.get(email=request.user.email)
+                    bereavement.staff = staff
+                except Staff.DoesNotExist:
+                    messages.error(request, 'Staff record not found.')
+                    return redirect('dashboard')
+            bereavement.save()
             messages.success(request, 'Bereavement leave recorded successfully!')
             return redirect('bereavement_list')
     else:
         form = BereavementForm()
+        # If not HRMO, hide staff field
+        if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+            form.fields.pop('staff', None)
+    
     return render(request, 'staff/bereavement_form.html', {'form': form, 'title': 'Record Bereavement Leave'})
 
+@login_required
+def my_profile(request):
+    try:
+        staff = Staff.objects.get(email=request.user.email)
+    except Staff.DoesNotExist:
+        messages.error(request, 'Staff record not found. Please contact HR.')
+        return redirect('dashboard')
+    
+    return render(request, 'staff/my_profile.html', {'staff': staff})
+
+@login_required
 def print_id_card(request, pk):
     staff = get_object_or_404(Staff, pk=pk)
     
-    # Create PDF
+    # Check if user can access this staff's ID card
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        try:
+            user_staff = Staff.objects.get(email=request.user.email)
+            if user_staff != staff:
+                messages.error(request, 'Access denied.')
+                return redirect('dashboard')
+        except Staff.DoesNotExist:
+            messages.error(request, 'Access denied.')
+            return redirect('dashboard')
+    
+    # Create PDF - Standard ID card size (3.375" x 2.125")
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=(3.375*72, 2.125*72))  # Standard ID card size
+    p = canvas.Canvas(buffer, pagesize=(3.375*72, 2.125*72))
     
-    # Card background
-    p.setFillColorRGB(0.9, 0.9, 0.9)
-    p.rect(0, 0, 3.375*72, 2.125*72, fill=1)
+    # Blue header background
+    p.setFillColorRGB(0.1, 0.3, 0.6)  # Dark blue
+    p.rect(0, 120, 3.375*72, 33, fill=1)
     
-    # University header
-    p.setFillColorRGB(0, 0, 0)
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(10, 140, "UNIVERSITY STAFF ID")
-    
-    # Staff photo placeholder
-    p.setFillColorRGB(0.8, 0.8, 0.8)
-    p.rect(10, 80, 50, 50, fill=1)
-    p.setFillColorRGB(0, 0, 0)
+    # University name in header
+    p.setFillColorRGB(1, 1, 1)  # White text
+    p.setFont("Helvetica-Bold", 11)
+    text_width = p.stringWidth("UNIVERSITY OF SIERRA LEONE", "Helvetica-Bold", 11)
+    p.drawString((3.375*72 - text_width)/2, 135, "UNIVERSITY OF SIERRA LEONE")
     p.setFont("Helvetica", 8)
-    p.drawString(15, 100, "PHOTO")
+    text_width = p.stringWidth("STAFF IDENTIFICATION CARD", "Helvetica", 8)
+    p.drawString((3.375*72 - text_width)/2, 125, "STAFF IDENTIFICATION CARD")
+    
+    # White background for main content
+    p.setFillColorRGB(1, 1, 1)
+    p.rect(0, 0, 3.375*72, 120, fill=1)
+    
+    # Photo section
+    if staff.photo:
+        try:
+            # Draw actual photo
+            p.drawImage(staff.photo.path, 15, 65, width=55, height=45, preserveAspectRatio=True, mask='auto')
+        except:
+            # Fallback to placeholder if photo can't be loaded
+            p.setFillColorRGB(0.95, 0.95, 0.95)
+            p.rect(15, 65, 55, 45, fill=1)
+            p.setStrokeColorRGB(0.7, 0.7, 0.7)
+            p.rect(15, 65, 55, 45, fill=0)
+            p.setFillColorRGB(0.5, 0.5, 0.5)
+            p.setFont("Helvetica", 8)
+            text_width = p.stringWidth("NO PHOTO", "Helvetica", 8)
+            p.drawString(42.5 - text_width/2, 85, "NO PHOTO")
+    else:
+        # Photo placeholder with border
+        p.setFillColorRGB(0.95, 0.95, 0.95)
+        p.rect(15, 65, 55, 45, fill=1)
+        p.setStrokeColorRGB(0.7, 0.7, 0.7)
+        p.rect(15, 65, 55, 45, fill=0)
+        p.setFillColorRGB(0.5, 0.5, 0.5)
+        p.setFont("Helvetica", 8)
+        text_width = p.stringWidth("NO PHOTO", "Helvetica", 8)
+        p.drawString(42.5 - text_width/2, 85, "NO PHOTO")
     
     # Staff details
+    p.setFillColorRGB(0, 0, 0)  # Black text
     p.setFont("Helvetica-Bold", 10)
-    p.drawString(70, 120, staff.full_name)
-    p.setFont("Helvetica", 8)
-    p.drawString(70, 110, f"ID: {staff.staff_id}")
-    p.drawString(70, 100, f"Dept: {staff.department.name}")
-    p.drawString(70, 90, f"Position: {staff.position}")
+    p.drawString(80, 100, staff.full_name.upper())
     
-    # Footer
+    p.setFont("Helvetica", 8)
+    p.drawString(80, 88, f"ID: {staff.staff_id}")
+    p.drawString(80, 78, f"Dept: {staff.department.name}")
+    p.drawString(80, 68, f"Position: {staff.position}")
+    
+    # Leadership role if applicable
+    if staff.leadership_role != 'none':
+        p.setFont("Helvetica-Bold", 7)
+        p.setFillColorRGB(0.8, 0.2, 0.2)  # Red text for leadership
+        role_display = staff.leadership_role.replace('_', ' ').title()
+        p.drawString(15, 50, role_display)
+    
+    # Bottom section with blue accent
+    p.setFillColorRGB(0.1, 0.3, 0.6)
+    p.rect(0, 0, 3.375*72, 25, fill=1)
+    
+    # Footer text
+    p.setFillColorRGB(1, 1, 1)
     p.setFont("Helvetica", 6)
-    p.drawString(10, 10, "This card is property of the University")
+    p.drawString(15, 15, "This card is property of the University")
+    p.drawString(15, 8, f"Valid from: {staff.hire_date}")
+    
+    # Expiry date (5 years from hire date)
+    from dateutil.relativedelta import relativedelta
+    expiry_date = staff.hire_date + relativedelta(years=5)
+    p.drawString(15, 2, f"Expires: {expiry_date}")
+    
+    # University logo placeholder (right side)
+    p.setFillColorRGB(0.8, 0.8, 0.8)
+    p.circle(220, 12, 10, fill=1)
+    p.setFillColorRGB(0.5, 0.5, 0.5)
+    p.setFont("Helvetica", 6)
+    text_width = p.stringWidth("LOGO", "Helvetica", 6)
+    p.drawString(220 - text_width/2, 10, "LOGO")
     
     p.showPage()
     p.save()
@@ -225,11 +446,21 @@ def print_id_card(request, pk):
     return response
 
 # School Management Views
+@login_required
 def school_list(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     schools = School.objects.annotate(dept_count=Count('department')).order_by('name')
     return render(request, 'staff/school_list.html', {'schools': schools})
 
+@login_required
 def school_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = SchoolForm(request.POST)
         if form.is_valid():
@@ -240,7 +471,12 @@ def school_create(request):
         form = SchoolForm()
     return render(request, 'staff/school_form.html', {'form': form, 'title': 'Add School'})
 
+@login_required
 def school_update(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     school = get_object_or_404(School, pk=pk)
     if request.method == 'POST':
         form = SchoolForm(request.POST, instance=school)
@@ -252,7 +488,12 @@ def school_update(request, pk):
         form = SchoolForm(instance=school)
     return render(request, 'staff/school_form.html', {'form': form, 'title': 'Update School'})
 
+@login_required
 def school_delete(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     school = get_object_or_404(School, pk=pk)
     if request.method == 'POST':
         school.delete()
@@ -261,11 +502,21 @@ def school_delete(request, pk):
     return render(request, 'staff/school_confirm_delete.html', {'school': school})
 
 # Department Management Views
+@login_required
 def department_list(request):
-    departments = Department.objects.select_related('school', 'parent_department').annotate(staff_count=Count('staff')).order_by('name')
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    departments = Department.objects.select_related('school').annotate(staff_count=Count('staff')).order_by('name')
     return render(request, 'staff/department_list.html', {'departments': departments})
 
+@login_required
 def department_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     if request.method == 'POST':
         form = DepartmentForm(request.POST)
         if form.is_valid():
@@ -276,7 +527,12 @@ def department_create(request):
         form = DepartmentForm()
     return render(request, 'staff/department_form.html', {'form': form, 'title': 'Add Department'})
 
+@login_required
 def department_update(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     department = get_object_or_404(Department, pk=pk)
     if request.method == 'POST':
         form = DepartmentForm(request.POST, instance=department)
@@ -288,7 +544,12 @@ def department_update(request, pk):
         form = DepartmentForm(instance=department)
     return render(request, 'staff/department_form.html', {'form': form, 'title': 'Update Department'})
 
+@login_required
 def department_delete(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
     department = get_object_or_404(Department, pk=pk)
     if request.method == 'POST':
         department.delete()
@@ -296,245 +557,91 @@ def department_delete(request, pk):
         return redirect('department_list')
     return render(request, 'staff/department_confirm_delete.html', {'department': department})
 
-# Workflow Views
-def is_hrmo(user):
-    """Check if user is an HRMO"""
-    try:
-        return HRMO.objects.filter(user=user, is_active=True).exists()
-    except:
-        return False
-
+# Export Views
 @login_required
-@user_passes_test(is_hrmo)
-def pending_approvals(request):
-    """Dashboard for HRMOs to see pending approvals"""
-    pending_leaves = Leave.objects.filter(status='pending').select_related('staff')
-    pending_promotions = Promotion.objects.filter(status='pending').select_related('staff')
-    
-    context = {
-        'pending_leaves': pending_leaves,
-        'pending_promotions': pending_promotions,
-    }
-    return render(request, 'staff/pending_approvals.html', context)
-
-@login_required
-@user_passes_test(is_hrmo)
-def approve_leave(request, pk):
-    """Approve or reject leave application"""
-    leave = get_object_or_404(Leave, pk=pk, status='pending')
-    
-    if request.method == 'POST':
-        form = LeaveApprovalForm(request.POST, instance=leave)
-        if form.is_valid():
-            leave = form.save(commit=False)
-            leave.approved_by = request.user
-            leave.approved_date = timezone.now()
-            leave.save()
-            
-            # Send notification to staff
-            leave.send_approval_notification()
-            
-            # Create workflow action
-            action_type = 'leave_approved' if leave.status == 'approved' else 'leave_rejected'
-            WorkflowAction.objects.create(
-                action_type=action_type,
-                performed_by=request.user,
-                staff_affected=leave.staff,
-                description=f'Leave application {leave.status}',
-                content_type='leave',
-                object_id=leave.id
-            )
-            
-            messages.success(request, f'Leave application {leave.status} successfully!')
-            return redirect('pending_approvals')
-    else:
-        form = LeaveApprovalForm(instance=leave)
-    
-    return render(request, 'staff/approve_leave.html', {'form': form, 'leave': leave})
-
-@login_required
-@user_passes_test(is_hrmo)
-def approve_promotion(request, pk):
-    """Approve or reject promotion application"""
-    promotion = get_object_or_404(Promotion, pk=pk, status='pending')
-    
-    if request.method == 'POST':
-        form = PromotionApprovalForm(request.POST, instance=promotion)
-        if form.is_valid():
-            promotion = form.save(commit=False)
-            promotion.approved_by = request.user
-            promotion.approved_date = timezone.now()
-            promotion.save()
-            
-            # If approved, update staff details
-            if promotion.status == 'approved':
-                staff = promotion.staff
-                staff.position = promotion.new_position
-                staff.department = promotion.new_department
-                staff.staff_grade = promotion.new_grade
-                staff.save()
-            
-            # Send notification to staff
-            promotion.send_approval_notification()
-            
-            # Create workflow action
-            action_type = 'promotion_approved' if promotion.status == 'approved' else 'promotion_rejected'
-            WorkflowAction.objects.create(
-                action_type=action_type,
-                performed_by=request.user,
-                staff_affected=promotion.staff,
-                description=f'Promotion application {promotion.status}',
-                content_type='promotion',
-                object_id=promotion.id
-            )
-            
-            messages.success(request, f'Promotion application {promotion.status} successfully!')
-            return redirect('pending_approvals')
-    else:
-        form = PromotionApprovalForm(instance=promotion)
-    
-    return render(request, 'staff/approve_promotion.html', {'form': form, 'promotion': promotion})
-
-@login_required
-def staff_apply_leave(request):
-    """Staff self-service leave application"""
-    try:
-        staff = Staff.objects.get(email=request.user.email)
-    except Staff.DoesNotExist:
-        messages.error(request, 'Staff record not found. Please contact HR.')
+def export_staff_csv(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
         return redirect('dashboard')
     
-    if request.method == 'POST':
-        form = StaffLeaveApplicationForm(request.POST)
-        if form.is_valid():
-            leave = form.save(commit=False)
-            leave.staff = staff
-            leave.save()
-            
-            # Send notification to HRMOs
-            leave.send_application_notification()
-            
-            messages.success(request, 'Leave application submitted successfully!')
-            return redirect('my_leave_applications')
-    else:
-        form = StaffLeaveApplicationForm()
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="staff_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
     
-    return render(request, 'staff/staff_apply_leave.html', {'form': form})
+    writer = csv.writer(response)
+    writer.writerow([
+        'Staff ID', 'Full Name', 'Email', 'Phone', 'Department', 'Position', 
+        'Leadership Role', 'Staff Type', 'Grade', 'Hire Date', 'Status'
+    ])
+    
+    staff_list = Staff.objects.select_related('department').filter(status='active')
+    for staff in staff_list:
+        writer.writerow([
+            staff.staff_id,
+            staff.full_name,
+            staff.email,
+            staff.phone,
+            staff.department.name,
+            staff.position,
+            staff.get_leadership_role_display(),
+            staff.get_staff_type_display(),
+            staff.staff_grade,
+            staff.hire_date,
+            staff.get_status_display()
+        ])
+    
+    return response
 
 @login_required
-def my_leave_applications(request):
-    """Staff view their own leave applications"""
-    try:
-        staff = Staff.objects.get(email=request.user.email)
-        leaves = Leave.objects.filter(staff=staff).order_by('-applied_date')
-    except Staff.DoesNotExist:
-        messages.error(request, 'Staff record not found. Please contact HR.')
+def export_staff_pdf(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
         return redirect('dashboard')
     
-    return render(request, 'staff/my_leave_applications.html', {'leaves': leaves})
-
-# HRMO Management Views
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-def hrmo_list(request):
-    """List all HRMOs"""
-    hrmos = HRMO.objects.select_related('staff', 'user').all()
-    return render(request, 'staff/hrmo_list.html', {'hrmos': hrmos})
-
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
-def hrmo_create(request):
-    """Create new HRMO"""
-    if request.method == 'POST':
-        form = HRMOForm(request.POST)
-        if form.is_valid():
-            hrmo = form.save(commit=False)
-            # Create user account for the staff member if not exists
-            staff = hrmo.staff
-            try:
-                user = User.objects.get(email=staff.email)
-            except User.DoesNotExist:
-                user = User.objects.create_user(
-                    username=staff.staff_id,
-                    email=staff.email,
-                    first_name=staff.first_name,
-                    last_name=staff.last_name
-                )
-            hrmo.user = user
-            hrmo.save()
-            messages.success(request, 'HRMO created successfully!')
-            return redirect('hrmo_list')
-    else:
-        form = HRMOForm()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="staff_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
     
-    return render(request, 'staff/hrmo_form.html', {'form': form, 'title': 'Create HRMO'})
-
-@login_required
-def workflow_history(request):
-    """View workflow action history"""
-    actions = WorkflowAction.objects.select_related('performed_by', 'staff_affected').order_by('-timestamp')[:50]
-    return render(request, 'staff/workflow_history.html', {'actions': actions})
-
-@login_required
-def notifications(request):
-    """View user notifications"""
-    user_notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:20]
-    # Mark as read
-    user_notifications.update(is_read=True)
-    return render(request, 'staff/notifications.html', {'notifications': user_notifications})
-
-@login_required
-def my_promotions(request):
-    """Staff view their own promotions"""
-    try:
-        staff = Staff.objects.get(email=request.user.email)
-        promotions = Promotion.objects.filter(staff=staff).order_by('-created_at')
-    except Staff.DoesNotExist:
-        messages.error(request, 'Staff record not found. Please contact HR.')
-        return redirect('dashboard')
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
     
-    return render(request, 'staff/my_promotions.html', {'promotions': promotions})
-
-@login_required
-def my_profile(request):
-    """Staff view their own profile"""
-    try:
-        staff = Staff.objects.get(email=request.user.email)
-    except Staff.DoesNotExist:
-        messages.error(request, 'Staff record not found. Please contact HR.')
-        return redirect('dashboard')
+    # Title
+    title = Paragraph("University Staff Report", styles['Title'])
+    story.append(title)
+    story.append(Spacer(1, 12))
     
-    return render(request, 'staff/my_profile.html', {'staff': staff})
-
-@login_required
-def staff_dashboard(request):
-    """Dashboard for regular staff members"""
-    try:
-        staff = Staff.objects.get(email=request.user.email)
-        
-        # Get staff's own data
-        my_leaves = Leave.objects.filter(staff=staff).order_by('-applied_date')[:5]
-        my_promotions = Promotion.objects.filter(staff=staff).order_by('-created_at')[:3]
-        
-        # Statistics for this staff member
-        pending_leaves = Leave.objects.filter(staff=staff, status='pending').count()
-        approved_leaves_this_year = Leave.objects.filter(
-            staff=staff, 
-            status='approved',
-            start_date__year=timezone.now().year
-        ).count()
-        
-        context = {
-            'staff': staff,
-            'my_leaves': my_leaves,
-            'my_promotions': my_promotions,
-            'pending_leaves': pending_leaves,
-            'approved_leaves_this_year': approved_leaves_this_year,
-            'is_staff_dashboard': True,
-        }
-        
-    except Staff.DoesNotExist:
-        messages.error(request, 'Staff record not found. Please contact HR.')
-        return redirect('login')
+    # Date
+    date_para = Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal'])
+    story.append(date_para)
+    story.append(Spacer(1, 12))
     
-    return render(request, 'staff/staff_dashboard.html', context)
+    # Staff data
+    staff_list = Staff.objects.select_related('department').filter(status='active')
+    
+    data = [['Staff ID', 'Name', 'Department', 'Position', 'Leadership Role', 'Type']]
+    for staff in staff_list:
+        data.append([
+            staff.staff_id,
+            staff.full_name,
+            staff.department.name,
+            staff.position,
+            staff.get_leadership_role_display(),
+            staff.get_staff_type_display()
+        ])
+    
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    story.append(table)
+    doc.build(story)
+    
+    return response

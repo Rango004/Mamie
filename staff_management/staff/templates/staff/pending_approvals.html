@@ -25,7 +25,7 @@
                             <p class="mb-0"><strong>Reason:</strong> {{ leave.reason|truncatewords:10 }}</p>
                         </div>
                         <div>
-                            <a href="{% url 'approve_leave' leave.pk %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-check"></i> Review
                             </a>
                         </div>
@@ -57,7 +57,7 @@
                             <p class="mb-0"><strong>Effective:</strong> {{ promotion.effective_date }}</p>
                         </div>
                         <div>
-                            <a href="{% url 'approve_promotion' promotion.pk %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-check"></i> Review
                             </a>
                         </div>
