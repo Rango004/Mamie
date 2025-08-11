@@ -106,6 +106,21 @@ def staff_create(request):
     
     if request.method == 'POST':
         form = StaffForm(request.POST, request.FILES)
+        
+        # Validate photo if uploaded
+        if request.FILES.get('photo'):
+            photo = request.FILES['photo']
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+            max_size = 1 * 1024 * 1024  # 1MB
+            
+            if photo.content_type not in allowed_types:
+                messages.error(request, 'Only JPEG, PNG, and GIF images are allowed for photos.')
+                return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Add Staff'})
+            
+            if photo.size > max_size:
+                messages.error(request, 'Photo file size must be less than 1MB.')
+                return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Add Staff'})
+        
         if form.is_valid():
             try:
                 staff = form.save()
@@ -132,6 +147,21 @@ def staff_update(request, pk):
     staff = get_object_or_404(Staff, pk=pk)
     if request.method == 'POST':
         form = StaffForm(request.POST, request.FILES, instance=staff)
+        
+        # Validate photo if uploaded
+        if request.FILES.get('photo'):
+            photo = request.FILES['photo']
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+            max_size = 1 * 1024 * 1024  # 1MB
+            
+            if photo.content_type not in allowed_types:
+                messages.error(request, 'Only JPEG, PNG, and GIF images are allowed for photos.')
+                return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Update Staff'})
+            
+            if photo.size > max_size:
+                messages.error(request, 'Photo file size must be less than 1MB.')
+                return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Update Staff'})
+        
         if form.is_valid():
             try:
                 updated_staff = form.save()
@@ -733,8 +763,22 @@ def update_profile_photo(request):
         return redirect('dashboard')
     
     if request.method == 'POST' and request.FILES.get('photo'):
+        photo = request.FILES['photo']
+        
+        # File validation
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+        max_size = 1 * 1024 * 1024  # 1MB
+        
+        if photo.content_type not in allowed_types:
+            messages.error(request, 'Only JPEG, PNG, and GIF images are allowed.')
+            return redirect('my_profile')
+        
+        if photo.size > max_size:
+            messages.error(request, 'File size must be less than 1MB.')
+            return redirect('my_profile')
+        
         try:
-            staff.photo = request.FILES['photo']
+            staff.photo = photo
             staff.save()
             messages.success(request, 'Profile photo updated successfully!')
         except Exception as e:
@@ -782,13 +826,28 @@ def staff_profile_view(request, pk):
 
 def staff_register(request):
     if request.method == 'POST':
-        staff_id = request.POST.get('staff_id')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        confirm_password = request.POST.get('confirm_password')
+        staff_id = request.POST.get('staff_id', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        
+        # Input validation
+        if not staff_id or not email or not password:
+            messages.error(request, 'All fields are required.')
+            return render(request, 'registration/staff_register.html')
+        
+        if len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters long.')
+            return render(request, 'registration/staff_register.html')
         
         if password != confirm_password:
             messages.error(request, 'Passwords do not match.')
+            return render(request, 'registration/staff_register.html')
+        
+        # Sanitize inputs
+        import re
+        if not re.match(r'^[A-Za-z0-9]+$', staff_id):
+            messages.error(request, 'Staff ID can only contain letters and numbers.')
             return render(request, 'registration/staff_register.html')
         
         try:
@@ -796,8 +855,8 @@ def staff_register(request):
             staff = Staff.objects.get(staff_id=staff_id, email=email)
             
             # Check if user already exists
-            if User.objects.filter(email=email).exists():
-                messages.error(request, 'An account with this email already exists.')
+            if User.objects.filter(Q(email=email) | Q(username=staff_id)).exists():
+                messages.error(request, 'An account with this email or staff ID already exists.')
                 return render(request, 'registration/staff_register.html')
             
             # Create user account
@@ -814,5 +873,150 @@ def staff_register(request):
             
         except Staff.DoesNotExist:
             messages.error(request, 'Invalid staff ID or email. Please contact HR.')
+        except Exception as e:
+            messages.error(request, 'Registration failed. Please try again.')
     
     return render(request, 'registration/staff_register.html')
+
+# Bulk upload views
+@login_required
+def bulk_upload_staff(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST' and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        
+        # Validate CSV file
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return render(request, 'staff/bulk_upload_staff.html')
+        
+        if csv_file.size > 10 * 1024 * 1024:  # 10MB limit
+            messages.error(request, 'File size must be less than 10MB.')
+            return render(request, 'staff/bulk_upload_staff.html')
+        
+        try:
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            
+            success_count = 0
+            error_count = 0
+            
+            for row in reader:
+                try:
+                    department = Department.objects.get(code=row['department_code'])
+                    
+                    Staff.objects.create(
+                        staff_id=row['staff_id'],
+                        first_name=row['first_name'],
+                        last_name=row['last_name'],
+                        email=row['email'],
+                        phone=row['phone'],
+                        date_of_birth=datetime.strptime(row['date_of_birth'], '%Y-%m-%d').date(),
+                        address=row['address'],
+                        next_of_kin_name=row['next_of_kin_name'],
+                        next_of_kin_relationship=row['next_of_kin_relationship'],
+                        next_of_kin_phone=row['next_of_kin_phone'],
+                        next_of_kin_address=row['next_of_kin_address'],
+                        department=department,
+                        position=row['position'],
+                        staff_type=row['staff_type'],
+                        staff_category=row['staff_category'],
+                        staff_grade=row['staff_grade'],
+                        leadership_role=row.get('leadership_role', 'none'),
+                        hire_date=datetime.strptime(row['hire_date'], '%Y-%m-%d').date(),
+                        bank_name=row['bank_name'],
+                        bank_account_number=row['bank_account_number'],
+                        nassit_number=row['nassit_number'],
+                        highest_qualification=row['highest_qualification'],
+                        institution=row['institution'],
+                        graduation_year=int(row['graduation_year'])
+                    )
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+            
+            messages.success(request, f'Successfully uploaded {success_count} staff records.')
+            if error_count > 0:
+                messages.warning(request, f'{error_count} records failed.')
+                
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+    
+    return render(request, 'staff/bulk_upload_staff.html')
+
+@login_required
+def bulk_upload_departments(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST' and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        try:
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            
+            success_count = 0
+            error_count = 0
+            
+            for row in reader:
+                try:
+                    school = None
+                    if row.get('school_code'):
+                        school = School.objects.get(code=row['school_code'])
+                    
+                    Department.objects.create(
+                        name=row['name'],
+                        code=row['code'],
+                        school=school,
+                        department_type=row.get('department_type', 'academic')
+                    )
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+            
+            messages.success(request, f'Successfully uploaded {success_count} departments.')
+            if error_count > 0:
+                messages.warning(request, f'{error_count} departments failed.')
+                
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+    
+    return render(request, 'staff/bulk_upload_departments.html')
+
+@login_required
+def bulk_upload_schools(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST' and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        try:
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            
+            success_count = 0
+            error_count = 0
+            
+            for row in reader:
+                try:
+                    School.objects.create(
+                        name=row['name'],
+                        code=row['code']
+                    )
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+            
+            messages.success(request, f'Successfully uploaded {success_count} schools.')
+            if error_count > 0:
+                messages.warning(request, f'{error_count} schools failed.')
+                
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+    
+    return render(request, 'staff/bulk_upload_schools.html')

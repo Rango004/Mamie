@@ -1,0 +1,60 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Bulk Upload Departments</h1>
+    <a href="{% url 'department_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Departments
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Upload CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">CSV File</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                        <div class="form-text">Select a CSV file containing department data</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload Departments
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>CSV Format Requirements</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Required columns:</strong></p>
+                <ul class="small">
+                    <li>name</li>
+                    <li>code</li>
+                </ul>
+                <p><strong>Optional columns:</strong></p>
+                <ul class="small">
+                    <li>school_code</li>
+                    <li>department_type (academic/administrative)</li>
+                </ul>
+                
+                <div class="alert alert-info mt-3">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        Upload schools first if departments belong to schools.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

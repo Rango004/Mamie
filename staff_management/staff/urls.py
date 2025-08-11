@@ -51,5 +51,10 @@ urlpatterns = [
     # Export URLs
     path('export/staff/csv/', views.export_staff_csv, name='export_staff_csv'),
     path('export/staff/pdf/', views.export_staff_pdf, name='export_staff_pdf'),
+    
+    # Bulk upload URLs
+    path('bulk-upload/staff/', views.bulk_upload_staff, name='bulk_upload_staff'),
+    path('bulk-upload/departments/', views.bulk_upload_departments, name='bulk_upload_departments'),
+    path('bulk-upload/schools/', views.bulk_upload_schools, name='bulk_upload_schools'),
 
 ]

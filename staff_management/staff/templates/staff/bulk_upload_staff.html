@@ -1,0 +1,73 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Bulk Upload Staff</h1>
+    <a href="{% url 'staff_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Staff List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Upload CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">CSV File</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                        <div class="form-text">Select a CSV file containing staff data</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload Staff Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>CSV Format Requirements</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Required columns:</strong></p>
+                <ul class="small">
+                    <li>staff_id</li>
+                    <li>first_name</li>
+                    <li>last_name</li>
+                    <li>email</li>
+                    <li>phone</li>
+                    <li>date_of_birth (YYYY-MM-DD)</li>
+                    <li>address</li>
+                    <li>next_of_kin_name</li>
+                    <li>next_of_kin_relationship</li>
+                    <li>next_of_kin_phone</li>
+                    <li>next_of_kin_address</li>
+                    <li>department_code</li>
+                    <li>position</li>
+                    <li>staff_type</li>
+                    <li>staff_category</li>
+                    <li>staff_grade</li>
+                    <li>hire_date (YYYY-MM-DD)</li>
+                    <li>bank_name</li>
+                    <li>bank_account_number</li>
+                    <li>nassit_number</li>
+                    <li>highest_qualification</li>
+                    <li>institution</li>
+                    <li>graduation_year</li>
+                </ul>
+                <p><strong>Optional:</strong></p>
+                <ul class="small">
+                    <li>leadership_role</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
