@@ -1,0 +1,80 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Staff Profile</h1>
+    <a href="{% url 'staff_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>{{ staff.full_name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>Staff ID:</strong><br>
+                            {{ staff.staff_id }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Position:</strong><br>
+                            {{ staff.position }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Department:</strong><br>
+                            {{ staff.department.name }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>School:</strong><br>
+                            {{ staff.department.school.name }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>Staff Type:</strong><br>
+                            <span class="badge bg-info">{{ staff.get_staff_type_display }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Grade:</strong><br>
+                            <span class="badge bg-secondary">{{ staff.staff_grade }}</span>
+                        </div>
+                        {% if staff.leadership_role != 'none' %}
+                        <div class="mb-3">
+                            <strong>Leadership Role:</strong><br>
+                            <span class="badge bg-warning text-dark">{{ staff.get_leadership_role_display }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <strong>Status:</strong><br>
+                            <span class="badge bg-success">{{ staff.get_status_display }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Photo</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if staff.photo %}
+                    <img src="{{ staff.photo.url }}" alt="Staff Photo" class="img-fluid rounded" style="max-height: 200px;">
+                {% else %}
+                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="fas fa-user fa-4x text-muted"></i>
+                    </div>
+                    <p class="text-muted mt-2">No photo available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

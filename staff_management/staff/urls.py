@@ -11,6 +11,8 @@ urlpatterns = [
     path('staff/<int:pk>/edit/', views.staff_update, name='staff_update'),
     path('staff/<int:pk>/delete/', views.staff_delete, name='staff_delete'),
     path('staff/<int:pk>/id-card/', views.print_id_card, name='print_id_card'),
+    path('staff/<int:pk>/profile/', views.staff_profile_view, name='staff_profile_view'),
+    path('register/', views.staff_register, name='staff_register'),
     
     # Leave URLs
     path('leaves/', views.leave_list, name='leave_list'),

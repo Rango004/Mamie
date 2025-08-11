@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from .models import Staff, Department, School, Leave, Promotion, Retirement, Bereavement, HRMO
 from .forms import StaffForm, LeaveForm, PromotionForm, RetirementForm, BereavementForm, SchoolForm, DepartmentForm
 import io
@@ -13,6 +14,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 import csv
 from datetime import datetime
+import qrcode
+from io import BytesIO
+from PIL import Image
 
 @login_required
 def dashboard(request):
@@ -423,19 +427,48 @@ def print_id_card(request, pk):
     p.setFont("Helvetica", 6)
     p.drawString(15, 15, "This card is property of the University")
     p.drawString(15, 8, f"Valid from: {staff.hire_date}")
+    p.drawString(130, 15, "Scan QR for profile")
+    p.drawString(130, 8, f"ID: {staff.staff_id}")
     
     # Expiry date (5 years from hire date)
     from dateutil.relativedelta import relativedelta
     expiry_date = staff.hire_date + relativedelta(years=5)
     p.drawString(15, 2, f"Expires: {expiry_date}")
     
-    # University logo placeholder (right side)
-    p.setFillColorRGB(0.8, 0.8, 0.8)
-    p.circle(220, 12, 10, fill=1)
-    p.setFillColorRGB(0.5, 0.5, 0.5)
-    p.setFont("Helvetica", 6)
-    text_width = p.stringWidth("LOGO", "Helvetica", 6)
-    p.drawString(220 - text_width/2, 10, "LOGO")
+    # Generate QR code for staff profile
+    profile_url = f"http://127.0.0.1:8000/staff/{staff.pk}/profile/"
+    qr = qrcode.QRCode(version=1, box_size=3, border=1)
+    qr.add_data(profile_url)
+    qr.make(fit=True)
+    
+    # Create QR code image and save to temporary file
+    import tempfile
+    import os
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save QR code to temporary file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+    qr_img.save(temp_file.name)
+    temp_file.close()
+    
+    # Draw QR code on card
+    try:
+        p.drawImage(temp_file.name, 200, 65, width=40, height=40)
+        # Clean up temp file
+        os.unlink(temp_file.name)
+    except Exception as e:
+        print(f"QR code error: {e}")
+        # Clean up temp file even on error
+        try:
+            os.unlink(temp_file.name)
+        except:
+            pass
+        # Fallback if QR code fails
+        p.setFillColorRGB(0.8, 0.8, 0.8)
+        p.rect(200, 65, 40, 40, fill=1)
+        p.setFillColorRGB(0.5, 0.5, 0.5)
+        p.setFont("Helvetica", 6)
+        p.drawString(205, 85, "QR CODE")
     
     p.showPage()
     p.save()
@@ -741,3 +774,45 @@ def approve_promotion(request, pk):
         return redirect('promotion_list')
     
     return render(request, 'staff/approve_promotion.html', {'promotion': promotion})
+
+@login_required
+def staff_profile_view(request, pk):
+    staff = get_object_or_404(Staff, pk=pk)
+    return render(request, 'staff/staff_profile_view.html', {'staff': staff})
+
+def staff_register(request):
+    if request.method == 'POST':
+        staff_id = request.POST.get('staff_id')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        if password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+            return render(request, 'registration/staff_register.html')
+        
+        try:
+            # Check if staff exists with this ID and email
+            staff = Staff.objects.get(staff_id=staff_id, email=email)
+            
+            # Check if user already exists
+            if User.objects.filter(email=email).exists():
+                messages.error(request, 'An account with this email already exists.')
+                return render(request, 'registration/staff_register.html')
+            
+            # Create user account
+            user = User.objects.create_user(
+                username=staff_id,
+                email=email,
+                password=password,
+                first_name=staff.first_name,
+                last_name=staff.last_name
+            )
+            
+            messages.success(request, 'Account created successfully! You can now login.')
+            return redirect('login')
+            
+        except Staff.DoesNotExist:
+            messages.error(request, 'Invalid staff ID or email. Please contact HR.')
+    
+    return render(request, 'registration/staff_register.html')
