@@ -3,8 +3,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Review Promotion Application</h1>
-    <a href="{% url 'dashboard' %}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Back to Pending
+    <a href="{% url 'promotion_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Promotion List
     </a>
 </div>
 
@@ -17,30 +17,54 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>Staff Information</h6>
-                        <p><strong>Name:</strong> {{ promotion.staff.full_name }}</p>
-                        <p><strong>Staff ID:</strong> {{ promotion.staff.staff_id }}</p>
-                        <p><strong>Current Position:</strong> {{ promotion.old_position }}</p>
-                        <p><strong>Current Department:</strong> {{ promotion.old_department.name }}</p>
-                        <p><strong>Current Grade:</strong> {{ promotion.old_grade }}</p>
+                        <div class="mb-3">
+                            <strong>Staff Member:</strong><br>
+                            {{ promotion.staff.full_name }} ({{ promotion.staff.staff_id }})
+                        </div>
+                        <div class="mb-3">
+                            <strong>Current Position:</strong><br>
+                            {{ promotion.old_position }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Requested Position:</strong><br>
+                            <span class="text-success">{{ promotion.new_position }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Current Department:</strong><br>
+                            {{ promotion.old_department.name }}
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <h6>Proposed Changes</h6>
-                        <p><strong>New Position:</strong> {{ promotion.new_position }}</p>
-                        <p><strong>New Department:</strong> {{ promotion.new_department.name }}</p>
-                        <p><strong>New Grade:</strong> {{ promotion.new_grade }}</p>
-                        <p><strong>Effective Date:</strong> {{ promotion.effective_date }}</p>
+                        <div class="mb-3">
+                            <strong>New Department:</strong><br>
+                            {{ promotion.new_department.name }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Current Grade:</strong><br>
+                            {{ promotion.old_grade }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>New Grade:</strong><br>
+                            <span class="text-success">{{ promotion.new_grade }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Effective Date:</strong><br>
+                            {{ promotion.effective_date }}
+                        </div>
                     </div>
                 </div>
                 
-                {% if promotion.notes %}
-                <div class="mt-3">
-                    <p><strong>Notes:</strong></p>
-                    <p class="border p-3 bg-light">{{ promotion.notes }}</p>
+                <div class="mb-3">
+                    <strong>Justification/Notes:</strong><br>
+                    <div class="border p-2 bg-light">
+                        {{ promotion.notes|default:"No notes provided" }}
+                    </div>
                 </div>
-                {% endif %}
                 
-                <p><strong>Application Date:</strong> {{ promotion.created_at|date:"M d, Y H:i" }}</p>
+                <div class="mb-3">
+                    <strong>Applied Date:</strong><br>
+                    {{ promotion.created_at }}
+                </div>
             </div>
         </div>
     </div>
@@ -48,25 +72,23 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5>Approval Decision</h5>
+                <h5>Approval Actions</h5>
             </div>
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="{{ form.status.id_for_label }}" class="form-label">Decision</label>
-                        {{ form.status }}
-                    </div>
                     
                     <div class="mb-3">
-                        <label for="{{ form.rejection_reason.id_for_label }}" class="form-label">Rejection Reason</label>
-                        {{ form.rejection_reason }}
-                        <div class="form-text">Required only if rejecting the application</div>
+                        <label for="rejection_reason" class="form-label">Rejection Reason (if rejecting):</label>
+                        <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="3"></textarea>
                     </div>
                     
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-check"></i> Submit Decision
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="fas fa-check"></i> Approve Promotion
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger">
+                            <i class="fas fa-times"></i> Reject Promotion
                         </button>
                     </div>
                 </form>

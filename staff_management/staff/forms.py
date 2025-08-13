@@ -8,9 +8,9 @@ class StaffForm(forms.ModelForm):
         fields = ['staff_id', 'first_name', 'last_name', 'email', 'phone', 'date_of_birth',
                  'address', 'next_of_kin_name', 'next_of_kin_relationship', 'next_of_kin_phone',
                  'next_of_kin_address', 'department', 'position', 'staff_type', 'staff_category',
-                 'staff_grade', 'leadership_role', 'hire_date', 'bank_name', 'bank_account_number', 'bank_sort_code',
-                 'nassit_number', 'highest_qualification', 'institution', 'graduation_year',
-                 'other_qualifications', 'publications', 'photo']
+                 'staff_grade', 'employment_type', 'leadership_role', 'supervisor', 'hire_date', 'contract_start_date',
+                 'bank_name', 'bank_account_number', 'bank_sort_code', 'nassit_number', 'highest_qualification', 
+                 'institution', 'graduation_year', 'other_qualifications', 'publications', 'photo']
         widgets = {
             'hire_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -30,7 +30,10 @@ class StaffForm(forms.ModelForm):
             'staff_type': forms.Select(attrs={'class': 'form-control'}),
             'staff_category': forms.Select(attrs={'class': 'form-control'}),
             'staff_grade': forms.Select(attrs={'class': 'form-control'}),
+            'employment_type': forms.Select(attrs={'class': 'form-control'}),
             'leadership_role': forms.Select(attrs={'class': 'form-control'}),
+            'supervisor': forms.Select(attrs={'class': 'form-control'}),
+            'contract_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
             'bank_account_number': forms.TextInput(attrs={'class': 'form-control'}),
             'bank_sort_code': forms.TextInput(attrs={'class': 'form-control'}),
@@ -40,6 +43,10 @@ class StaffForm(forms.ModelForm):
             'other_qualifications': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'publications': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['contract_start_date'].required = False
 
 class LeaveForm(forms.ModelForm):
     class Meta:

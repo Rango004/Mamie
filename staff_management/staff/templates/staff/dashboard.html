@@ -253,7 +253,8 @@
     </div>
 
     <div class="row mt-4">
-        <div class="col-md-12">
+        <!-- Recent Promotions -->
+        <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
                     <h5>Recent Promotions</h5>
@@ -271,6 +272,68 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Retirement Notifications -->
+        {% if retirement_due %}
+        <div class="col-md-6">
+            <div class="card border-secondary">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-user-clock"></i> Upcoming Retirements</h5>
+                    <a href="{% url 'check_retirement_notifications' %}" class="btn btn-sm btn-dark">View All</a>
+                </div>
+                <div class="card-body bg-light">
+                    {% for staff in retirement_due %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded border">
+                        <div>
+                            <strong class="text-dark">{{ staff.full_name }}</strong><br>
+                            <small class="text-secondary">{{ staff.department.name }} - {{ staff.position }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-dark text-white">{{ staff.months_to_retirement }} months</span><br>
+                            <small class="text-secondary">{{ staff.retirement_date }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Contract Renewal Notifications -->
+        {% if contract_renewals_due %}
+        <div class="col-md-6">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-contract"></i> Contract Renewals Due</h5>
+                    <a href="{% url 'check_contract_renewals' %}" class="btn btn-sm btn-light">View All</a>
+                </div>
+                <div class="card-body bg-light">
+                    {% for staff in contract_renewals_due %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded border">
+                        <div>
+                            <strong class="text-dark">{{ staff.full_name }}</strong><br>
+                            <small class="text-secondary">{{ staff.department.name }} - {{ staff.get_employment_type_display }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-info text-white">Renewal Due</span><br>
+                            <small class="text-secondary">{{ staff.hire_date }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
+    
+    {% if not retirement_due and not contract_renewals_due %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> No immediate retirement or contract renewal notifications required.
+            </div>
+        </div>
+    </div>
+    {% endif %}
 {% endif %}
 {% endblock %}

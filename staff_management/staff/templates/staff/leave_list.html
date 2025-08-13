@@ -21,6 +21,7 @@
                         <th>Days</th>
                         <th>Status</th>
                         <th>Applied Date</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,10 +38,17 @@
                             </span>
                         </td>
                         <td>{{ leave.applied_date|date:"M d, Y" }}</td>
+                        <td>
+                            {% if leave.status == 'pending' and user.is_superuser or is_hrmo %}
+                                <a href="{% url 'approve_leave' leave.pk %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-check"></i> Review
+                                </a>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No leave applications found.</td>
+                        <td colspan="8" class="text-center">No leave applications found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -1,0 +1,46 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Announcements</h1>
+    {% if is_hrmo %}
+    <a href="{% url 'announcement_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Announcement
+    </a>
+    {% endif %}
+</div>
+
+<div class="row">
+    {% for announcement in announcements %}
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="badge bg-{% if announcement.announcement_type == 'letter' %}primary{% elif announcement.announcement_type == 'notice' %}warning{% elif announcement.announcement_type == 'memo' %}info{% else %}secondary{% endif %}">
+                    {{ announcement.get_announcement_type_display }}
+                </span>
+                <small class="text-muted">{{ announcement.created_at|date:"M d, Y" }}</small>
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">{{ announcement.title }}</h5>
+                <p class="card-text">{{ announcement.content|truncatewords:20 }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-users"></i> {{ announcement.get_target_audience_display }}
+                    </small>
+                    <a href="{% url 'announcement_detail' announcement.pk %}" class="btn btn-sm btn-outline-primary">
+                        Read More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle"></i>
+            No announcements available at this time.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Retirement Settings</h1>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Configure Retirement Settings</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="retirement_age" class="form-label">Retirement Age (Years)</label>
+                        <input type="number" class="form-control" id="retirement_age" name="retirement_age" 
+                               value="{{ settings.retirement_age }}" min="50" max="70" required>
+                        <div class="form-text">Age at which staff members retire</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notification_months" class="form-label">Notification Period (Months)</label>
+                        <input type="number" class="form-control" id="notification_months" name="notification_months" 
+                               value="{{ settings.retirement_notification_months }}" min="1" max="24" required>
+                        <div class="form-text">Months before retirement to send notifications</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Retirement Notifications</h5>
+            </div>
+            <div class="card-body">
+                <p>Current settings will notify staff and HR when retirement is due within <strong>{{ settings.retirement_notification_months }} months</strong>.</p>
+                
+                <div class="d-grid">
+                    <a href="{% url 'check_retirement_notifications' %}" class="btn btn-warning">
+                        <i class="fas fa-bell"></i> Check Retirement Notifications
+                    </a>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> Retirement notifications are sent to both the staff member and all active HRMO users.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

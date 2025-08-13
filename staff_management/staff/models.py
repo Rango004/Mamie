@@ -80,6 +80,14 @@ class Staff(models.Model):
         ('j8', 'Junior Scale 8'),
     ]
     
+    EMPLOYMENT_TYPES = [
+        ('full_time', 'Full Time'),
+        ('part_time', 'Part Time'),
+        ('contract', 'Contract'),
+        ('associate', 'Associate'),
+        ('beyond_retirement', 'Employment Beyond Retirement'),
+    ]
+    
     LEADERSHIP_ROLES = [
         ('none', 'No Leadership Role'),
         ('vice_chancellor', 'Vice Chancellor'),
@@ -118,9 +126,13 @@ class Staff(models.Model):
     staff_type = models.CharField(max_length=20, choices=STAFF_TYPES)
     staff_category = models.CharField(max_length=20, choices=STAFF_CATEGORIES)
     staff_grade = models.CharField(max_length=10, choices=GRADE_CHOICES)
+    employment_type = models.CharField(max_length=20, choices=EMPLOYMENT_TYPES, default='full_time')
     leadership_role = models.CharField(max_length=30, choices=LEADERSHIP_ROLES, default='none')
+    supervisor = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='supervised_staff')
     hire_date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    contract_start_date = models.DateField(null=True, blank=True, help_text="For contract and associate staff")
+    contract_renewal_notification_sent = models.BooleanField(default=False)
     
     # Financial Information
     bank_name = models.CharField(max_length=100)
@@ -151,14 +163,150 @@ class Staff(models.Model):
     
     @property
     def retirement_date(self):
-        """Calculate retirement date as date of birth + 65 years"""
-        return self.date_of_birth + relativedelta(years=65)
+        """Calculate retirement date based on system settings"""
+        settings = SystemSettings.get_settings()
+        return self.date_of_birth + relativedelta(years=settings.retirement_age)
+    
+    @property
+    def months_to_retirement(self):
+        """Calculate months until retirement"""
+        today = date.today()
+        retirement_date = self.retirement_date
+        if retirement_date <= today:
+            return 0
+        return (retirement_date.year - today.year) * 12 + (retirement_date.month - today.month)
+    
+    @property
+    def is_retirement_due(self):
+        """Check if retirement notification should be sent"""
+        settings = SystemSettings.get_settings()
+        return self.months_to_retirement <= settings.retirement_notification_months and self.months_to_retirement > 0
     
     @property
     def age(self):
         """Calculate current age"""
         today = date.today()
         return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+    
+    def get_supervisor(self):
+        """Get staff supervisor - either assigned supervisor or HOD"""
+        if self.supervisor:
+            return self.supervisor
+        # If no supervisor assigned, find HOD of department
+        hod = Staff.objects.filter(department=self.department, leadership_role='hod').first()
+        return hod
+    
+    @property
+    def needs_contract_renewal_notification(self):
+        """Check if contract renewal notification should be sent"""
+        if self.employment_type in ['part_time', 'associate', 'contract']:
+            return False  # These types don't get renewal notifications
+        
+        if not self.contract_start_date:
+            contract_date = self.hire_date
+        else:
+            contract_date = self.contract_start_date
+        
+        today = date.today()
+        years_since_contract = (today - contract_date).days / 365.25
+        
+        # Check if 2 years or 4 years have passed and notification not sent
+        if ((years_since_contract >= 2 and years_since_contract < 2.1 and not self.contract_renewal_notification_sent) or 
+           (years_since_contract >= 4 and years_since_contract < 4.1)):
+            return True
+        return False
+
+class StaffGrade(models.Model):
+    """Editable staff grades/scales"""
+    code = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=20, choices=[
+        ('senior', 'Senior Staff'),
+        ('junior', 'Junior Staff'),
+        ('supporting', 'Supporting Staff')
+    ])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['category', 'code']
+    
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+class SystemSettings(models.Model):
+    """System-wide settings"""
+    retirement_age = models.IntegerField(default=65, help_text="Retirement age in years")
+    retirement_notification_months = models.IntegerField(default=6, help_text="Months before retirement to send notifications")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "System Settings"
+        verbose_name_plural = "System Settings"
+    
+    def __str__(self):
+        return f"Retirement Age: {self.retirement_age} years"
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create system settings"""
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings
+
+class Announcement(models.Model):
+    """Announcements and letters to staff"""
+    ANNOUNCEMENT_TYPES = [
+        ('announcement', 'General Announcement'),
+        ('letter', 'Official Letter'),
+        ('notice', 'Notice'),
+        ('memo', 'Memorandum'),
+    ]
+    
+    TARGET_AUDIENCE = [
+        ('all', 'All Staff'),
+        ('academic', 'Academic Staff'),
+        ('administrative', 'Administrative Staff'),
+        ('support', 'Support Staff'),
+        ('senior', 'Senior Staff'),
+        ('junior', 'Junior Staff'),
+        ('leadership', 'Leadership Roles'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    announcement_type = models.CharField(max_length=20, choices=ANNOUNCEMENT_TYPES, default='announcement')
+    target_audience = models.CharField(max_length=20, choices=TARGET_AUDIENCE, default='all')
+    specific_departments = models.ManyToManyField(Department, blank=True, help_text="Leave empty to target all departments")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    is_active = models.BooleanField(default=True)
+    send_email = models.BooleanField(default=False, help_text="Send via email to targeted staff")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.get_target_audience_display()}"
+    
+    def get_target_staff(self):
+        """Get staff members based on target audience"""
+        staff_queryset = Staff.objects.filter(status='active')
+        
+        if self.target_audience == 'all':
+            pass  # Keep all active staff
+        elif self.target_audience in ['academic', 'administrative', 'support']:
+            staff_queryset = staff_queryset.filter(staff_type=self.target_audience)
+        elif self.target_audience in ['senior', 'junior']:
+            staff_queryset = staff_queryset.filter(staff_category=self.target_audience)
+        elif self.target_audience == 'leadership':
+            staff_queryset = staff_queryset.exclude(leadership_role='none')
+        
+        # Filter by specific departments if selected
+        if self.specific_departments.exists():
+            staff_queryset = staff_queryset.filter(department__in=self.specific_departments.all())
+        
+        return staff_queryset
 
 class HRMO(models.Model):
     """Human Resource Management Officer"""
@@ -185,8 +333,9 @@ class Leave(models.Model):
     ]
     
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
+        ('pending', 'Pending Supervisor Approval'),
+        ('supervisor_approved', 'Supervisor Approved'),
+        ('approved', 'HR Approved'),
         ('rejected', 'Rejected'),
     ]
 
@@ -196,9 +345,11 @@ class Leave(models.Model):
     end_date = models.DateField()
     days_requested = models.IntegerField()
     reason = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     applied_date = models.DateTimeField(auto_now_add=True)
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_leaves')
+    supervisor_approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='supervisor_approved_leaves')
+    supervisor_approved_date = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='hr_approved_leaves')
     approved_date = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
 
@@ -282,8 +433,9 @@ class Leave(models.Model):
 
 class Promotion(models.Model):
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('approved', 'Approved'),
+        ('pending', 'Pending Supervisor Approval'),
+        ('supervisor_approved', 'Supervisor Approved'),
+        ('approved', 'HR Approved'),
         ('rejected', 'Rejected'),
     ]
     
@@ -295,8 +447,10 @@ class Promotion(models.Model):
     old_grade = models.CharField(max_length=10)
     new_grade = models.CharField(max_length=10)
     effective_date = models.DateField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_promotions')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
+    supervisor_approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='supervisor_approved_promotions')
+    supervisor_approved_date = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='hr_approved_promotions')
     approved_date = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(blank=True)
     notes = models.TextField(blank=True)

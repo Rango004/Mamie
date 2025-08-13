@@ -30,9 +30,11 @@
                         <th>Position</th>
                         <th>Leadership Role</th>
                         <th>Type</th>
+                        <th>Employment</th>
                         <th>Grade</th>
                         <th>Age</th>
                         <th>Actions</th>
+                        <th>HRMO</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -53,11 +55,17 @@
                             <span class="badge bg-info">{{ staff_member.get_staff_type_display }}</span>
                         </td>
                         <td>
+                            <span class="badge bg-primary">{{ staff_member.get_employment_type_display }}</span>
+                        </td>
+                        <td>
                             <span class="badge bg-secondary">{{ staff_member.get_staff_grade_display }}</span>
                         </td>
                         <td>{{ staff_member.age }}</td>
                         <td>
                             <div class="btn-group" role="group">
+                                <a href="{% url 'staff_profile_view' staff_member.pk %}" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
                                 <a href="{% url 'staff_update' staff_member.pk %}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-edit"></i>
                                 </a>
@@ -69,10 +77,22 @@
                                 </a>
                             </div>
                         </td>
+                        <td>
+                            {% if staff_member.hrmo %}
+                                <span class="badge bg-success">HRMO</span>
+                            {% else %}
+                                <form method="post" action="{% url 'hrmo_toggle' staff_member.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-user-shield"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center">No staff records found.</td>
+                        <td colspan="11" class="text-center">No staff records found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

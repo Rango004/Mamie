@@ -1,10 +1,12 @@
 {% extends 'staff/base.html' %}
 
+{% block title %}HRMO Management{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-user-tie"></i> HRMO Management</h1>
-    <a href="{% url 'dashboard' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Add HRMO
+    <h1>HRMO Management</h1>
+    <a href="{% url 'hrmo_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Assign HRMO
     </a>
 </div>
 
@@ -14,22 +16,21 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Staff Name</th>
                         <th>Staff ID</th>
-                        <th>Email</th>
+                        <th>Name</th>
                         <th>Department</th>
+                        <th>Email</th>
                         <th>Status</th>
-                        <th>Created</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for hrmo in hrmos %}
                     <tr>
-                        <td>{{ hrmo.staff.full_name }}</td>
                         <td>{{ hrmo.staff.staff_id }}</td>
-                        <td>{{ hrmo.staff.email }}</td>
+                        <td>{{ hrmo.staff.full_name }}</td>
                         <td>{{ hrmo.staff.department.name }}</td>
+                        <td>{{ hrmo.staff.email }}</td>
                         <td>
                             {% if hrmo.is_active %}
                                 <span class="badge bg-success">Active</span>
@@ -37,21 +38,19 @@
                                 <span class="badge bg-secondary">Inactive</span>
                             {% endif %}
                         </td>
-                        <td>{{ hrmo.created_at|date:"M d, Y" }}</td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-primary" disabled>
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" disabled>
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+                            <a href="{% url 'hrmo_toggle' hrmo.pk %}" class="btn btn-sm btn-outline-warning">
+                                {% if hrmo.is_active %}
+                                    <i class="fas fa-pause"></i> Deactivate
+                                {% else %}
+                                    <i class="fas fa-play"></i> Activate
+                                {% endif %}
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center">No HRMOs found.</td>
+                        <td colspan="6" class="text-center">No HRMO assignments found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

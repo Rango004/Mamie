@@ -17,6 +17,14 @@
                     <div class="mb-3">
                         <label for="{{ form.staff.id_for_label }}" class="form-label">Staff Member</label>
                         {{ form.staff }}
+                        {% if retirement_due %}
+                        <div class="form-text">
+                            <strong>Staff due for retirement:</strong><br>
+                            {% for staff in retirement_due %}
+                                <span class="badge bg-warning text-dark me-1">{{ staff.full_name }} ({{ staff.months_to_retirement }} months)</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -30,6 +38,7 @@
             <div class="mb-3">
                 <label for="{{ form.retirement_date.id_for_label }}" class="form-label">Retirement Date</label>
                 {{ form.retirement_date }}
+                <div class="form-text">Staff retirement age is calculated based on system settings</div>
             </div>
             
             <div class="mb-3">

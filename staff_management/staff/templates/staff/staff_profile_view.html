@@ -75,6 +75,45 @@
                 {% endif %}
             </div>
         </div>
+        
+        {% if user.is_superuser or user.hrmo %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>HRMO Management</h5>
+            </div>
+            <div class="card-body">
+                {% if hrmo %}
+                    <p><strong>HRMO Status:</strong> 
+                        {% if hrmo.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </p>
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="hrmo_action" value="toggle">
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            {% if hrmo.is_active %}
+                                <i class="fas fa-pause"></i> Deactivate
+                            {% else %}
+                                <i class="fas fa-play"></i> Activate
+                            {% endif %}
+                        </button>
+                    </form>
+                {% else %}
+                    <p class="text-muted">Not assigned as HRMO</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="hrmo_action" value="assign">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-user-shield"></i> Assign as HRMO
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

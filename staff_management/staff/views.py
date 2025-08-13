@@ -4,7 +4,10 @@ from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.conf import settings
 from .models import Staff, Department, School, Leave, Promotion, Retirement, Bereavement, HRMO
+from datetime import date
 from .forms import StaffForm, LeaveForm, PromotionForm, RetirementForm, BereavementForm, SchoolForm, DepartmentForm
 import io
 from reportlab.pdfgen import canvas
@@ -28,7 +31,7 @@ def dashboard(request):
         total_staff = Staff.objects.filter(status='active').count()
         total_departments = Department.objects.count()
         total_schools = School.objects.count()
-        pending_leaves = Leave.objects.filter(status='pending').count()
+        pending_leaves = Leave.objects.filter(status__in=['pending', 'supervisor_approved']).count()
         
         staff_by_dept = Department.objects.annotate(
             staff_count=Count('staff', filter=Q(staff__status='active'))
@@ -58,6 +61,14 @@ def dashboard(request):
         recent_leaves = Leave.objects.select_related('staff').order_by('-applied_date')[:5]
         recent_promotions = Promotion.objects.select_related('staff').order_by('-created_at')[:5]
         
+        # Get staff due for retirement
+        staff_due_retirement = Staff.objects.filter(status='active')
+        retirement_due = [staff for staff in staff_due_retirement if staff.is_retirement_due][:5]
+        
+        # Get staff needing contract renewal notifications
+        staff_needing_renewal = Staff.objects.filter(status='active')
+        contract_renewals_due = [staff for staff in staff_needing_renewal if staff.needs_contract_renewal_notification][:5]
+        
         context = {
             'total_staff': total_staff,
             'total_departments': total_departments,
@@ -67,6 +78,8 @@ def dashboard(request):
             'leadership_roles': leadership_roles,
             'recent_leaves': recent_leaves,
             'recent_promotions': recent_promotions,
+            'retirement_due': retirement_due,
+            'contract_renewals_due': contract_renewals_due,
         }
     else:
         # Limited dashboard for regular staff
@@ -74,13 +87,19 @@ def dashboard(request):
             staff = Staff.objects.get(email=request.user.email)
             my_leaves = Leave.objects.filter(staff=staff).order_by('-applied_date')[:5]
             my_promotions = Promotion.objects.filter(staff=staff).order_by('-created_at')[:3]
-            pending_leaves = Leave.objects.filter(staff=staff, status='pending').count()
+            pending_leaves = Leave.objects.filter(staff=staff, status__in=['pending', 'supervisor_approved']).count()
+            
+            # Check if user is a supervisor
+            supervised_leaves = Leave.objects.filter(staff__supervisor=staff, status='pending').count()
+            supervised_promotions = Promotion.objects.filter(staff__supervisor=staff, status='pending').count()
             
             context = {
                 'staff': staff,
                 'my_leaves': my_leaves,
                 'my_promotions': my_promotions,
                 'pending_leaves': pending_leaves,
+                'supervised_leaves': supervised_leaves,
+                'supervised_promotions': supervised_promotions,
                 'is_staff_view': True,
             }
         except Staff.DoesNotExist:
@@ -96,7 +115,8 @@ def staff_list(request):
         return redirect('dashboard')
     
     staff = Staff.objects.select_related('department__school').filter(status='active')
-    return render(request, 'staff/staff_list.html', {'staff': staff})
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    return render(request, 'staff/staff_list.html', {'staff': staff, 'is_hrmo': is_hrmo})
 
 @login_required
 def staff_create(request):
@@ -145,6 +165,35 @@ def staff_update(request, pk):
         return redirect('dashboard')
     
     staff = get_object_or_404(Staff, pk=pk)
+    
+    # Handle HRMO assignment/removal
+    if request.method == 'POST' and request.POST.get('hrmo_action'):
+        action = request.POST.get('hrmo_action')
+        if action == 'assign':
+            try:
+                user, created = User.objects.get_or_create(
+                    email=staff.email,
+                    defaults={
+                        'username': staff.staff_id,
+                        'first_name': staff.first_name,
+                        'last_name': staff.last_name
+                    }
+                )
+                HRMO.objects.create(user=user, staff=staff)
+                messages.success(request, f'{staff.full_name} assigned as HRMO successfully!')
+            except Exception as e:
+                messages.error(request, f'Error assigning HRMO: {str(e)}')
+        elif action == 'toggle':
+            try:
+                hrmo = HRMO.objects.get(staff=staff)
+                hrmo.is_active = not hrmo.is_active
+                hrmo.save()
+                status = 'activated' if hrmo.is_active else 'deactivated'
+                messages.success(request, f'HRMO status {status} for {staff.full_name}!')
+            except HRMO.DoesNotExist:
+                messages.error(request, 'HRMO record not found.')
+        return redirect('staff_update', pk=pk)
+    
     if request.method == 'POST':
         form = StaffForm(request.POST, request.FILES, instance=staff)
         
@@ -177,7 +226,21 @@ def staff_update(request, pk):
                     messages.error(request, f'{field}: {error}')
     else:
         form = StaffForm(instance=staff)
-    return render(request, 'staff/staff_form.html', {'form': form, 'title': 'Update Staff'})
+    
+    # Check if staff has HRMO role
+    try:
+        hrmo = HRMO.objects.get(staff=staff)
+    except HRMO.DoesNotExist:
+        hrmo = None
+    
+    is_admin_or_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    
+    return render(request, 'staff/staff_form.html', {
+        'form': form, 
+        'title': 'Update Staff',
+        'hrmo': hrmo,
+        'is_admin_or_hrmo': is_admin_or_hrmo
+    })
 
 @login_required
 def staff_delete(request, pk):
@@ -207,7 +270,7 @@ def leave_list(request):
             messages.error(request, 'Staff record not found.')
             return redirect('dashboard')
     
-    return render(request, 'staff/leave_list.html', {'leaves': leaves})
+    return render(request, 'staff/leave_list.html', {'leaves': leaves, 'is_hrmo': is_hrmo})
 
 @login_required
 def leave_create(request):
@@ -249,7 +312,7 @@ def promotion_list(request):
             messages.error(request, 'Staff record not found.')
             return redirect('dashboard')
     
-    return render(request, 'staff/promotion_list.html', {'promotions': promotions})
+    return render(request, 'staff/promotion_list.html', {'promotions': promotions, 'is_hrmo': is_hrmo})
 
 @login_required
 def promotion_create(request):
@@ -311,11 +374,20 @@ def retirement_create(request):
             staff = retirement.staff
             staff.status = 'retired'
             staff.save()
-            messages.success(request, 'Retirement processed successfully!')
+            messages.success(request, f'Retirement for {staff.full_name} processed successfully!')
             return redirect('retirement_list')
     else:
         form = RetirementForm()
-    return render(request, 'staff/retirement_form.html', {'form': form, 'title': 'Process Retirement'})
+        
+    # Get staff due for retirement for dropdown
+    from .models import SystemSettings
+    staff_due_retirement = Staff.objects.filter(status='active')
+    retirement_due = [staff for staff in staff_due_retirement if staff.is_retirement_due]
+    return render(request, 'staff/retirement_form.html', {
+        'form': form, 
+        'title': 'Process Retirement',
+        'retirement_due': retirement_due
+    })
 
 @login_required
 def bereavement_list(request):
@@ -788,27 +860,44 @@ def update_profile_photo(request):
 
 @login_required
 def approve_promotion(request, pk):
-    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
-        messages.error(request, 'Access denied. HRMO privileges required.')
-        return redirect('dashboard')
-    
     promotion = get_object_or_404(Promotion, pk=pk)
+    
+    # Check if user can approve this promotion
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    is_supervisor = False
+    
+    try:
+        user_staff = Staff.objects.get(email=request.user.email)
+        supervisor = promotion.staff.get_supervisor()
+        is_supervisor = supervisor and user_staff == supervisor
+    except Staff.DoesNotExist:
+        pass
+    
+    if not (is_hrmo or is_supervisor):
+        messages.error(request, 'Access denied. Supervisor or HRMO privileges required.')
+        return redirect('dashboard')
     
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'approve':
-            promotion.status = 'approved'
-            promotion.approved_by = request.user
-            promotion.approved_date = datetime.now()
-            
-            # Update staff record
-            staff = promotion.staff
-            staff.position = promotion.new_position
-            staff.department = promotion.new_department
-            staff.staff_grade = promotion.new_grade
-            staff.save()
-            
-            messages.success(request, f'Promotion for {staff.full_name} approved successfully!')
+            if is_supervisor and promotion.status == 'pending':
+                promotion.status = 'supervisor_approved'
+                promotion.supervisor_approved_by = request.user
+                promotion.supervisor_approved_date = datetime.now()
+                messages.success(request, f'Promotion for {promotion.staff.full_name} approved by supervisor!')
+            elif is_hrmo and promotion.status == 'supervisor_approved':
+                promotion.status = 'approved'
+                promotion.approved_by = request.user
+                promotion.approved_date = datetime.now()
+                
+                # Update staff record
+                staff = promotion.staff
+                staff.position = promotion.new_position
+                staff.department = promotion.new_department
+                staff.staff_grade = promotion.new_grade
+                staff.save()
+                
+                messages.success(request, f'Promotion for {staff.full_name} approved by HR!')
         elif action == 'reject':
             promotion.status = 'rejected'
             promotion.rejection_reason = request.POST.get('rejection_reason', '')
@@ -817,12 +906,95 @@ def approve_promotion(request, pk):
         promotion.save()
         return redirect('promotion_list')
     
-    return render(request, 'staff/approve_promotion.html', {'promotion': promotion})
+    return render(request, 'staff/approve_promotion.html', {'promotion': promotion, 'is_supervisor': is_supervisor, 'is_hrmo': is_hrmo})
+
+@login_required
+def approve_leave(request, pk):
+    leave = get_object_or_404(Leave, pk=pk)
+    
+    # Check if user can approve this leave
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    is_supervisor = False
+    
+    try:
+        user_staff = Staff.objects.get(email=request.user.email)
+        supervisor = leave.staff.get_supervisor()
+        is_supervisor = supervisor and user_staff == supervisor
+    except Staff.DoesNotExist:
+        pass
+    
+    if not (is_hrmo or is_supervisor):
+        messages.error(request, 'Access denied. Supervisor or HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'approve':
+            if is_supervisor and leave.status == 'pending':
+                leave.status = 'supervisor_approved'
+                leave.supervisor_approved_by = request.user
+                leave.supervisor_approved_date = datetime.now()
+                messages.success(request, f'Leave for {leave.staff.full_name} approved by supervisor!')
+            elif is_hrmo and leave.status == 'supervisor_approved':
+                leave.status = 'approved'
+                leave.approved_by = request.user
+                leave.approved_date = datetime.now()
+                messages.success(request, f'Leave for {leave.staff.full_name} approved by HR!')
+        elif action == 'reject':
+            leave.status = 'rejected'
+            leave.rejection_reason = request.POST.get('rejection_reason', '')
+            messages.success(request, f'Leave for {leave.staff.full_name} rejected.')
+        
+        leave.save()
+        return redirect('leave_list')
+    
+    return render(request, 'staff/approve_leave.html', {'leave': leave, 'is_supervisor': is_supervisor, 'is_hrmo': is_hrmo})
 
 @login_required
 def staff_profile_view(request, pk):
     staff = get_object_or_404(Staff, pk=pk)
-    return render(request, 'staff/staff_profile_view.html', {'staff': staff})
+    
+    # Handle HRMO assignment/removal
+    if request.method == 'POST' and (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        action = request.POST.get('hrmo_action')
+        if action == 'assign':
+            try:
+                user, created = User.objects.get_or_create(
+                    email=staff.email,
+                    defaults={
+                        'username': staff.staff_id,
+                        'first_name': staff.first_name,
+                        'last_name': staff.last_name
+                    }
+                )
+                HRMO.objects.create(user=user, staff=staff)
+                messages.success(request, f'{staff.full_name} assigned as HRMO successfully!')
+            except Exception as e:
+                messages.error(request, f'Error assigning HRMO: {str(e)}')
+        elif action == 'toggle':
+            try:
+                hrmo = HRMO.objects.get(staff=staff)
+                hrmo.is_active = not hrmo.is_active
+                hrmo.save()
+                status = 'activated' if hrmo.is_active else 'deactivated'
+                messages.success(request, f'HRMO status {status} for {staff.full_name}!')
+            except HRMO.DoesNotExist:
+                messages.error(request, 'HRMO record not found.')
+        return redirect('staff_profile_view', pk=pk)
+    
+    # Check if staff has HRMO role
+    try:
+        hrmo = HRMO.objects.get(staff=staff)
+    except HRMO.DoesNotExist:
+        hrmo = None
+    
+    is_admin_or_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    
+    return render(request, 'staff/staff_profile_view.html', {
+        'staff': staff, 
+        'hrmo': hrmo, 
+        'is_admin_or_hrmo': is_admin_or_hrmo
+    })
 
 def staff_register(request):
     if request.method == 'POST':
@@ -1020,3 +1192,395 @@ def bulk_upload_schools(request):
             messages.error(request, f'Error processing file: {str(e)}')
     
     return render(request, 'staff/bulk_upload_schools.html')
+
+@login_required
+def retirement_settings(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    from .models import SystemSettings
+    settings = SystemSettings.get_settings()
+    
+    if request.method == 'POST':
+        retirement_age = request.POST.get('retirement_age')
+        notification_months = request.POST.get('notification_months')
+        
+        try:
+            settings.retirement_age = int(retirement_age)
+            settings.retirement_notification_months = int(notification_months)
+            settings.save()
+            messages.success(request, 'Retirement settings updated successfully!')
+        except ValueError:
+            messages.error(request, 'Please enter valid numbers.')
+    
+    return render(request, 'staff/retirement_settings.html', {'settings': settings})
+
+@login_required
+def check_retirement_notifications(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    from .models import SystemSettings
+    staff_due_retirement = Staff.objects.filter(status='active')
+    retirement_due = [staff for staff in staff_due_retirement if staff.is_retirement_due]
+    
+    # Send notifications
+    for staff in retirement_due:
+        send_retirement_notification(staff)
+    
+    messages.success(request, f'Checked retirement notifications. {len(retirement_due)} staff due for retirement.')
+    return render(request, 'staff/retirement_notifications.html', {'staff_list': retirement_due})
+
+def send_retirement_notification(staff):
+    """Send retirement notification to staff and HRMO"""
+    from .models import SystemSettings
+    system_settings = SystemSettings.get_settings()
+    
+    # Send to staff
+    if staff.email:
+        subject = 'Retirement Notification'
+        message = f'''
+        Dear {staff.full_name},
+        
+        This is to notify you that your retirement date is approaching.
+        
+        Retirement Date: {staff.retirement_date}
+        Months Remaining: {staff.months_to_retirement}
+        
+        Please contact HR to discuss your retirement plans and benefits.
+        
+        Best regards,
+        Human Resources
+        '''
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [staff.email],
+            fail_silently=True,
+        )
+    
+    # Send to HRMOs
+    hrmos = HRMO.objects.filter(is_active=True)
+    hrmo_emails = [hrmo.user.email for hrmo in hrmos if hrmo.user.email]
+    
+    if hrmo_emails:
+        subject = f'Staff Retirement Due - {staff.full_name}'
+        message = f'''
+        Staff retirement notification:
+        
+        Staff: {staff.full_name} ({staff.staff_id})
+        Department: {staff.department.name}
+        Position: {staff.position}
+        Retirement Date: {staff.retirement_date}
+        Months Remaining: {staff.months_to_retirement}
+        
+        Please initiate retirement processing procedures.
+        '''
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            hrmo_emails,
+            fail_silently=True,
+        )
+
+@login_required
+def staff_grade_list(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    from .models import StaffGrade
+    grades = StaffGrade.objects.filter(is_active=True).order_by('category', 'code')
+    return render(request, 'staff/staff_grade_list.html', {'grades': grades})
+
+@login_required
+def staff_grade_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        code = request.POST.get('code')
+        name = request.POST.get('name')
+        category = request.POST.get('category')
+        
+        try:
+            from .models import StaffGrade
+            StaffGrade.objects.create(code=code, name=name, category=category)
+            messages.success(request, 'Staff grade added successfully!')
+            return redirect('staff_grade_list')
+        except Exception as e:
+            messages.error(request, f'Error adding grade: {str(e)}')
+    
+    return render(request, 'staff/staff_grade_form.html', {'title': 'Add Staff Grade'})
+
+@login_required
+def staff_grade_update(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    from .models import StaffGrade
+    grade = get_object_or_404(StaffGrade, pk=pk)
+    
+    if request.method == 'POST':
+        grade.code = request.POST.get('code')
+        grade.name = request.POST.get('name')
+        grade.category = request.POST.get('category')
+        
+        try:
+            grade.save()
+            messages.success(request, 'Staff grade updated successfully!')
+            return redirect('staff_grade_list')
+        except Exception as e:
+            messages.error(request, f'Error updating grade: {str(e)}')
+    
+    return render(request, 'staff/staff_grade_form.html', {'grade': grade, 'title': 'Update Staff Grade'})
+
+@login_required
+def announcement_list(request):
+    from .models import Announcement
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    
+    if is_hrmo:
+        announcements = Announcement.objects.filter(is_active=True)
+    else:
+        # Show announcements targeted to this staff member
+        try:
+            staff = Staff.objects.get(email=request.user.email)
+            announcements = []
+            for announcement in Announcement.objects.filter(is_active=True):
+                if staff in announcement.get_target_staff():
+                    announcements.append(announcement)
+        except Staff.DoesNotExist:
+            announcements = []
+    
+    return render(request, 'staff/announcement_list.html', {'announcements': announcements, 'is_hrmo': is_hrmo})
+
+@login_required
+def announcement_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        announcement_type = request.POST.get('announcement_type')
+        target_audience = request.POST.get('target_audience')
+        send_email = request.POST.get('send_email') == 'on'
+        department_ids = request.POST.getlist('departments')
+        
+        try:
+            from .models import Announcement
+            announcement = Announcement.objects.create(
+                title=title,
+                content=content,
+                announcement_type=announcement_type,
+                target_audience=target_audience,
+                send_email=send_email,
+                created_by=request.user
+            )
+            
+            # Add specific departments if selected
+            if department_ids:
+                departments = Department.objects.filter(id__in=department_ids)
+                announcement.specific_departments.set(departments)
+            
+            # Send emails if requested
+            if send_email:
+                target_staff = announcement.get_target_staff()
+                staff_emails = [staff.email for staff in target_staff if staff.email]
+                
+                if staff_emails:
+                    send_mail(
+                        subject=f"{announcement.get_announcement_type_display()}: {title}",
+                        message=content,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=staff_emails,
+                        fail_silently=True,
+                    )
+                    messages.success(request, f'Announcement created and sent to {len(staff_emails)} staff members!')
+                else:
+                    messages.success(request, 'Announcement created successfully!')
+            else:
+                messages.success(request, 'Announcement created successfully!')
+            
+            return redirect('announcement_list')
+        except Exception as e:
+            messages.error(request, f'Error creating announcement: {str(e)}')
+    
+    departments = Department.objects.all()
+    return render(request, 'staff/announcement_form.html', {'departments': departments})
+
+@login_required
+def announcement_detail(request, pk):
+    from .models import Announcement
+    announcement = get_object_or_404(Announcement, pk=pk)
+    
+    # Check if user can view this announcement
+    is_hrmo = request.user.is_superuser or hasattr(request.user, 'hrmo')
+    can_view = is_hrmo
+    
+    if not is_hrmo:
+        try:
+            staff = Staff.objects.get(email=request.user.email)
+            can_view = staff in announcement.get_target_staff()
+        except Staff.DoesNotExist:
+            can_view = False
+    
+    if not can_view:
+        messages.error(request, 'Access denied.')
+        return redirect('announcement_list')
+    
+    return render(request, 'staff/announcement_detail.html', {'announcement': announcement})
+
+@login_required
+def hrmo_list(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. Admin/HRMO privileges required.')
+        return redirect('dashboard')
+    
+    hrmos = HRMO.objects.select_related('staff', 'user').all()
+    return render(request, 'staff/hrmo_list.html', {'hrmos': hrmos})
+
+@login_required
+def hrmo_create(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. Admin/HRMO privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        staff_id = request.POST.get('staff')
+        try:
+            staff = Staff.objects.get(id=staff_id)
+            user, created = User.objects.get_or_create(
+                email=staff.email,
+                defaults={
+                    'username': staff.staff_id,
+                    'first_name': staff.first_name,
+                    'last_name': staff.last_name
+                }
+            )
+            HRMO.objects.create(user=user, staff=staff)
+            messages.success(request, f'{staff.full_name} assigned as HRMO successfully!')
+            return redirect('hrmo_list')
+        except Exception as e:
+            messages.error(request, f'Error assigning HRMO: {str(e)}')
+    
+    staff_list = Staff.objects.filter(status='active').exclude(hrmo__isnull=False)
+    return render(request, 'staff/hrmo_form.html', {'staff_list': staff_list})
+
+@login_required
+def hrmo_toggle(request, pk):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. Admin/HRMO privileges required.')
+        return redirect('dashboard')
+    
+    staff = get_object_or_404(Staff, pk=pk)
+    
+    try:
+        hrmo = HRMO.objects.get(staff=staff)
+        hrmo.is_active = not hrmo.is_active
+        hrmo.save()
+        status = 'activated' if hrmo.is_active else 'deactivated'
+        messages.success(request, f'HRMO {staff.full_name} {status} successfully!')
+    except HRMO.DoesNotExist:
+        # Create new HRMO
+        user, created = User.objects.get_or_create(
+            email=staff.email,
+            defaults={
+                'username': staff.staff_id,
+                'first_name': staff.first_name,
+                'last_name': staff.last_name
+            }
+        )
+        HRMO.objects.create(user=user, staff=staff)
+        messages.success(request, f'{staff.full_name} assigned as HRMO successfully!')
+    
+    return redirect('staff_list')
+
+@login_required
+def check_contract_renewals(request):
+    if not (request.user.is_superuser or hasattr(request.user, 'hrmo')):
+        messages.error(request, 'Access denied. HRMO privileges required.')
+        return redirect('dashboard')
+    
+    staff_needing_renewal = Staff.objects.filter(status='active')
+    renewal_due = [staff for staff in staff_needing_renewal if staff.needs_contract_renewal_notification]
+    
+    # Send notifications
+    for staff in renewal_due:
+        send_contract_renewal_notification(staff)
+    
+    messages.success(request, f'Checked contract renewals. {len(renewal_due)} staff need contract renewal notifications.')
+    return render(request, 'staff/contract_renewal_notifications.html', {'staff_list': renewal_due})
+
+def send_contract_renewal_notification(staff):
+    """Send contract renewal notification to staff and HRMO"""
+    contract_date = staff.contract_start_date if staff.contract_start_date else staff.hire_date
+    today = date.today()
+    years_since_contract = int((today - contract_date).days / 365.25)
+    
+    # Send to staff
+    if staff.email:
+        subject = 'Contract Renewal Notification'
+        message = f'''
+        Dear {staff.full_name},
+        
+        This is to notify you that your employment contract is due for renewal.
+        
+        Contract Start Date: {contract_date}
+        Years of Service: {years_since_contract} years
+        Employment Type: {staff.get_employment_type_display()}
+        
+        Please contact HR to discuss your contract renewal.
+        
+        Best regards,
+        Human Resources
+        '''
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [staff.email],
+            fail_silently=True,
+        )
+    
+    # Send to HRMOs
+    hrmos = HRMO.objects.filter(is_active=True)
+    hrmo_emails = [hrmo.user.email for hrmo in hrmos if hrmo.user.email]
+    
+    if hrmo_emails:
+        subject = f'Staff Contract Renewal Due - {staff.full_name}'
+        message = f'''
+        Staff contract renewal notification:
+        
+        Staff: {staff.full_name} ({staff.staff_id})
+        Department: {staff.department.name}
+        Position: {staff.position}
+        Employment Type: {staff.get_employment_type_display()}
+        Contract Start Date: {contract_date}
+        Years of Service: {years_since_contract} years
+        
+        Please initiate contract renewal procedures.
+        '''
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            hrmo_emails,
+            fail_silently=True,
+        )
+    
+    # Mark notification as sent
+    staff.contract_renewal_notification_sent = True
+    staff.save()

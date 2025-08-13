@@ -1,0 +1,108 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Create Announcement</h1>
+    <a href="{% url 'announcement_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="announcement_type" class="form-label">Type</label>
+                                <select class="form-control" id="announcement_type" name="announcement_type" required>
+                                    <option value="announcement">General Announcement</option>
+                                    <option value="letter">Official Letter</option>
+                                    <option value="notice">Notice</option>
+                                    <option value="memo">Memorandum</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="target_audience" class="form-label">Target Audience</label>
+                                <select class="form-control" id="target_audience" name="target_audience" required>
+                                    <option value="all">All Staff</option>
+                                    <option value="academic">Academic Staff</option>
+                                    <option value="administrative">Administrative Staff</option>
+                                    <option value="support">Support Staff</option>
+                                    <option value="senior">Senior Staff</option>
+                                    <option value="junior">Junior Staff</option>
+                                    <option value="leadership">Leadership Roles</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="departments" class="form-label">Specific Departments (Optional)</label>
+                        <select class="form-control" id="departments" name="departments" multiple>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple departments. Leave empty to target all departments.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea class="form-control" id="content" name="content" rows="8" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="send_email" name="send_email">
+                        <label class="form-check-label" for="send_email">
+                            Send via email to targeted staff
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Create & Send Announcement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Targeting Guide</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong>All Staff:</strong> Everyone in the system
+                </div>
+                <div class="mb-2">
+                    <strong>Academic Staff:</strong> Teaching and research staff
+                </div>
+                <div class="mb-2">
+                    <strong>Administrative Staff:</strong> Office and management staff
+                </div>
+                <div class="mb-2">
+                    <strong>Support Staff:</strong> Technical and support roles
+                </div>
+                <div class="mb-2">
+                    <strong>Senior/Junior Staff:</strong> Based on staff category
+                </div>
+                <div class="mb-2">
+                    <strong>Leadership Roles:</strong> Staff with leadership positions
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

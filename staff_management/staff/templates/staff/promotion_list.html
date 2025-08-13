@@ -43,7 +43,7 @@
                             </span>
                         </td>
                         <td>
-                            {% if promotion.status == 'pending' and is_hrmo or user.is_superuser %}
+                            {% if promotion.status == 'pending' and user.is_superuser or is_hrmo %}
                                 <a href="{% url 'approve_promotion' promotion.pk %}" class="btn btn-sm btn-primary">
                                     <i class="fas fa-check"></i> Review
                                 </a>

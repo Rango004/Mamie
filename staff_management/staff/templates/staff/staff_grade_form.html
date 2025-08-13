@@ -1,0 +1,68 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ title }}</h1>
+    <a href="{% url 'staff_grade_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="code" class="form-label">Grade Code</label>
+                        <input type="text" class="form-control" id="code" name="code" 
+                               value="{% if grade %}{{ grade.code }}{% endif %}" required>
+                        <div class="form-text">e.g., 1, 8.5, j1</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Grade Name</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{% if grade %}{{ grade.name }}{% endif %}" required>
+                        <div class="form-text">e.g., Scale 1, Scale 8.5, Junior Scale 1</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-control" id="category" name="category" required>
+                            <option value="">Select Category</option>
+                            <option value="senior" {% if grade.category == 'senior' %}selected{% endif %}>Senior Staff</option>
+                            <option value="junior" {% if grade.category == 'junior' %}selected{% endif %}>Junior Staff</option>
+                            <option value="supporting" {% if grade.category == 'supporting' %}selected{% endif %}>Supporting Staff</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Grade
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Grade Categories</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Senior Staff:</strong> Academic and senior administrative positions
+                </div>
+                <div class="mb-3">
+                    <strong>Junior Staff:</strong> Entry-level and junior positions
+                </div>
+                <div class="mb-3">
+                    <strong>Supporting Staff:</strong> Technical and support roles
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

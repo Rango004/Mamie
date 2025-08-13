@@ -35,6 +35,7 @@ urlpatterns = [
     path('apply-promotion/', views.staff_apply_promotion, name='staff_apply_promotion'),
     path('update-photo/', views.update_profile_photo, name='update_profile_photo'),
     path('promotions/<int:pk>/approve/', views.approve_promotion, name='approve_promotion'),
+    path('leaves/<int:pk>/approve/', views.approve_leave, name='approve_leave'),
     
     # School URLs
     path('schools/', views.school_list, name='school_list'),
@@ -56,5 +57,26 @@ urlpatterns = [
     path('bulk-upload/staff/', views.bulk_upload_staff, name='bulk_upload_staff'),
     path('bulk-upload/departments/', views.bulk_upload_departments, name='bulk_upload_departments'),
     path('bulk-upload/schools/', views.bulk_upload_schools, name='bulk_upload_schools'),
-
+    
+    # Retirement management URLs
+    path('retirement/settings/', views.retirement_settings, name='retirement_settings'),
+    path('retirement/notifications/', views.check_retirement_notifications, name='check_retirement_notifications'),
+    
+    # Contract renewal URLs
+    path('contract-renewals/', views.check_contract_renewals, name='check_contract_renewals'),
+    
+    # Staff grade management URLs
+    path('grades/', views.staff_grade_list, name='staff_grade_list'),
+    path('grades/add/', views.staff_grade_create, name='staff_grade_create'),
+    path('grades/<int:pk>/edit/', views.staff_grade_update, name='staff_grade_update'),
+    
+    # Announcement URLs
+    path('announcements/', views.announcement_list, name='announcement_list'),
+    path('announcements/create/', views.announcement_create, name='announcement_create'),
+    path('announcements/<int:pk>/', views.announcement_detail, name='announcement_detail'),
+    
+    # HRMO Management URLs
+    path('hrmo/', views.hrmo_list, name='hrmo_list'),
+    path('hrmo/add/', views.hrmo_create, name='hrmo_create'),
+    path('hrmo/<int:pk>/toggle/', views.hrmo_toggle, name='hrmo_toggle'),
 ]
