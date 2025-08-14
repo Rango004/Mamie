@@ -1,0 +1,107 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-plus"></i> {{ title }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="staff_category" class="form-label">Staff Category</label>
+                                <select class="form-select" id="staff_category" name="staff_category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="senior">Senior Staff</option>
+                                    <option value="senior_supporting">Senior Supporting Staff</option>
+                                    <option value="junior">Junior Staff</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="staff_grade" class="form-label">Staff Grade</label>
+                                <select class="form-select" id="staff_grade" name="staff_grade" required>
+                                    <option value="">Select Grade</option>
+                                    <option value="1">Scale 1</option>
+                                    <option value="2">Scale 2</option>
+                                    <option value="3">Scale 3</option>
+                                    <option value="4">Scale 4</option>
+                                    <option value="5">Scale 5</option>
+                                    <option value="6">Scale 6</option>
+                                    <option value="7">Scale 7</option>
+                                    <option value="8.1">Scale 8.1</option>
+                                    <option value="j1">Junior Scale 1</option>
+                                    <option value="j2">Junior Scale 2</option>
+                                    <option value="j3">Junior Scale 3</option>
+                                    <option value="j4">Junior Scale 4</option>
+                                    <option value="j5">Junior Scale 5</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="employment_type" class="form-label">Employment Type</label>
+                                <select class="form-select" id="employment_type" name="employment_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="full_time">Full Time</option>
+                                    <option value="part_time">Part Time</option>
+                                    <option value="contract">Contract</option>
+                                    <option value="associate">Associate</option>
+                                    <option value="beyond_retirement">Beyond Retirement</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="basic_salary" class="form-label">Basic Salary (Le)</label>
+                                <input type="number" class="form-control" id="basic_salary" name="basic_salary" required min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="housing_allowance" class="form-label">Housing Allowance (Le)</label>
+                                <input type="number" class="form-control" id="housing_allowance" name="housing_allowance" min="0" step="0.01" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transport_allowance" class="form-label">Transport Allowance (Le)</label>
+                                <input type="number" class="form-control" id="transport_allowance" name="transport_allowance" min="0" step="0.01" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="medical_allowance" class="form-label">Medical Allowance (Le)</label>
+                                <input type="number" class="form-control" id="medical_allowance" name="medical_allowance" min="0" step="0.01" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="other_allowances" class="form-label">Other Allowances (Le)</label>
+                        <input type="number" class="form-control" id="other_allowances" name="other_allowances" min="0" step="0.01" value="0">
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'salary_structure_list' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Structure
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

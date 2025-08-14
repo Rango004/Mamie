@@ -1,0 +1,89 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-chart-line"></i> Salary Structures</h1>
+    <div>
+        <a href="{% url 'salary_structure_create' %}" class="btn btn-primary me-2">
+            <i class="fas fa-plus"></i> Create Structure
+        </a>
+        <a href="{% url 'payroll_dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Payroll
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if structures %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Grade</th>
+                        <th>Employment Type</th>
+                        <th>Basic Salary</th>
+                        <th>Housing</th>
+                        <th>Transport</th>
+                        <th>Medical</th>
+                        <th>Other</th>
+                        <th>Gross Salary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for structure in structures %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-primary">{{ structure.get_staff_category_display }}</span>
+                        </td>
+                        <td><strong>{{ structure.staff_grade }}</strong></td>
+                        <td>{{ structure.get_employment_type_display }}</td>
+                        <td>Le {{ structure.basic_salary|floatformat:0 }}</td>
+                        <td>Le {{ structure.housing_allowance|floatformat:0 }}</td>
+                        <td>Le {{ structure.transport_allowance|floatformat:0 }}</td>
+                        <td>Le {{ structure.medical_allowance|floatformat:0 }}</td>
+                        <td>Le {{ structure.other_allowances|floatformat:0 }}</td>
+                        <td><strong>Le {{ structure.gross_salary|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Salary Structures Found</h5>
+            <p class="text-muted">Create salary structures to define compensation for different staff categories.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if structures %}
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Summary</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Total Structures:</strong> {{ structures|length }}</p>
+                <p><strong>Categories:</strong> 
+                    {% regroup structures by staff_category as category_list %}
+                    {% for category in category_list %}
+                        <span class="badge bg-secondary">{{ category.grouper|title }}</span>
+                    {% endfor %}
+                </p>
+                <p><strong>Employment Types:</strong>
+                    {% regroup structures by employment_type as type_list %}
+                    {% for type in type_list %}
+                        <span class="badge bg-info">{{ type.grouper|title }}</span>
+                    {% endfor %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

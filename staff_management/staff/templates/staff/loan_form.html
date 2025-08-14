@@ -1,0 +1,82 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-plus"></i> {{ title }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="staff" class="form-label">Staff Member</label>
+                                <select class="form-select" id="staff" name="staff" required>
+                                    <option value="">Select Staff</option>
+                                    {% for staff in staff_list %}
+                                    <option value="{{ staff.id }}">{{ staff.full_name }} ({{ staff.staff_id }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="loan_type" class="form-label">Loan Type</label>
+                                <select class="form-select" id="loan_type" name="loan_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="salary_advance">Salary Advance</option>
+                                    <option value="emergency">Emergency Loan</option>
+                                    <option value="housing">Housing Loan</option>
+                                    <option value="education">Education Loan</option>
+                                    <option value="other">Other Loan</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="amount" class="form-label">Loan Amount (Le)</label>
+                                <input type="number" class="form-control" id="amount" name="amount" required min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="interest_rate" class="form-label">Interest Rate (%)</label>
+                                <input type="number" class="form-control" id="interest_rate" name="interest_rate" min="0" step="0.01" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="repayment_months" class="form-label">Repayment Period (Months)</label>
+                                <input type="number" class="form-control" id="repayment_months" name="repayment_months" required min="1" max="60" value="12">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional notes about the loan..."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> Monthly deduction will be calculated automatically based on the loan amount, interest rate, and repayment period.
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'loan_list' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Loan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-calendar-check"></i> Leave Balances</h1>
+    <a href="{% url 'payroll_dashboard' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Payroll
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if balances %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Staff</th>
+                        <th>Department</th>
+                        <th>Annual Leave</th>
+                        <th>Sick Leave</th>
+                        <th>Maternity</th>
+                        <th>Paternity</th>
+                        <th>Emergency</th>
+                        <th>Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for balance in balances %}
+                    <tr>
+                        <td>
+                            <strong>{{ balance.staff.full_name }}</strong><br>
+                            <small class="text-muted">{{ balance.staff.staff_id }}</small>
+                        </td>
+                        <td>{{ balance.staff.department.name }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ balance.total_annual_leave }} days</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning">{{ balance.sick_leave_balance }} days</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ balance.maternity_leave_balance }} days</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ balance.paternity_leave_balance }} days</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger">{{ balance.emergency_leave_balance }} days</span>
+                        </td>
+                        <td>{{ balance.year }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Leave Balances Found</h5>
+            <p class="text-muted">Leave balances will be created automatically for staff members.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

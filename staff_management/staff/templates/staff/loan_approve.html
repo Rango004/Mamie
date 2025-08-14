@@ -1,0 +1,64 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-check-circle"></i> Review Loan Application</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6>Staff Information</h6>
+                        <p><strong>Name:</strong> {{ loan.staff.full_name }}</p>
+                        <p><strong>Staff ID:</strong> {{ loan.staff.staff_id }}</p>
+                        <p><strong>Department:</strong> {{ loan.staff.department.name }}</p>
+                        <p><strong>Position:</strong> {{ loan.staff.position }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Loan Details</h6>
+                        <p><strong>Type:</strong> {{ loan.get_loan_type_display }}</p>
+                        <p><strong>Amount:</strong> Le {{ loan.amount|floatformat:2 }}</p>
+                        <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
+                        <p><strong>Repayment Period:</strong> {{ loan.repayment_months }} months</p>
+                        <p><strong>Monthly Deduction:</strong> Le {{ loan.monthly_deduction|floatformat:2 }}</p>
+                    </div>
+                </div>
+                
+                {% if loan.notes %}
+                <div class="mb-4">
+                    <h6>Notes</h6>
+                    <div class="alert alert-light">
+                        {{ loan.notes }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-4">
+                    <h6>Application Details</h6>
+                    <p><strong>Application Date:</strong> {{ loan.application_date|date:"F d, Y" }}</p>
+                    <p><strong>Current Status:</strong> 
+                        <span class="badge bg-warning">{{ loan.get_status_display }}</span>
+                    </p>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <button type="submit" name="action" value="approve" class="btn btn-success me-md-2">
+                            <i class="fas fa-check"></i> Approve Loan
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger me-md-2">
+                            <i class="fas fa-times"></i> Reject Loan
+                        </button>
+                        <a href="{% url 'loan_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

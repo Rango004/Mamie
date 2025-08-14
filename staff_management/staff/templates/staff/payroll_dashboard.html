@@ -1,0 +1,181 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-money-bill-wave"></i> Payroll Management</h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ total_staff }}</h4>
+                        <p class="mb-0">Active Staff</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ salary_structures }}</h4>
+                        <p class="mb-0">Salary Structures</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-bar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{% if current_period %}1{% else %}0{% endif %}</h4>
+                        <p class="mb-0">Pending Period</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ recent_periods|length }}</h4>
+                        <p class="mb-0">Recent Periods</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_period %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-play-circle"></i> Current Payroll Period</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6>{{ current_period.name }}</h6>
+                <p class="text-muted">{{ current_period.start_date }} to {{ current_period.end_date }}</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    This payroll period is ready for processing.
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <form method="post" action="{% url 'process_payroll' %}" onsubmit="return confirm('Are you sure you want to process payroll for this period? This action cannot be undone.')">
+                    {% csrf_token %}
+                    <input type="hidden" name="period_id" value="{{ current_period.id }}">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-cogs"></i> Process Payroll
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    No pending payroll periods. All periods have been processed.
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-history"></i> Recent Payroll Periods</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_periods %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Dates</th>
+                                <th>Status</th>
+                                <th>Processed By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for period in recent_periods %}
+                            <tr>
+                                <td>{{ period.name }}</td>
+                                <td>{{ period.start_date|date:"M d" }} - {{ period.end_date|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if period.is_processed %}
+                                        <span class="badge bg-success">Processed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if period.processed_by %}
+                                        {{ period.processed_by.get_full_name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No payroll periods found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tools"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'create_payroll_period' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus"></i> Create Payroll Period
+                    </a>
+                    <a href="{% url 'salary_structure_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-chart-line"></i> Salary Structures
+                    </a>
+                    <a href="{% url 'payslip_list' %}" class="btn btn-outline-info">
+                        <i class="fas fa-file-invoice"></i> View All Payslips
+                    </a>
+                    <a href="{% url 'leave_balance_list' %}" class="btn btn-outline-success">
+                        <i class="fas fa-calendar-check"></i> Leave Balances
+                    </a>
+                    <a href="{% url 'loan_list' %}" class="btn btn-outline-warning">
+                        <i class="fas fa-hand-holding-usd"></i> Loan Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

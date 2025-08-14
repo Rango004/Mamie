@@ -79,4 +79,32 @@ urlpatterns = [
     path('hrmo/', views.hrmo_list, name='hrmo_list'),
     path('hrmo/add/', views.hrmo_create, name='hrmo_create'),
     path('hrmo/<int:pk>/toggle/', views.hrmo_toggle, name='hrmo_toggle'),
+    
+    # Password reset URL
+    path('staff/<int:pk>/reset-password/', views.reset_user_password, name='reset_user_password'),
+    path('change-password/', views.change_password, name='change_password'),
+    
+    # Payroll Management URLs
+    path('payroll/', views.payroll_dashboard, name='payroll_dashboard'),
+    path('payroll/create-period/', views.create_payroll_period, name='create_payroll_period'),
+    path('payroll/process/', views.process_payroll, name='process_payroll'),
+    path('payroll/salary-structures/', views.salary_structure_list, name='salary_structure_list'),
+    path('payroll/salary-structures/create/', views.salary_structure_create, name='salary_structure_create'),
+    path('payroll/loans/', views.loan_list, name='loan_list'),
+    path('payroll/loans/create/', views.loan_create, name='loan_create'),
+    path('payroll/loans/<int:pk>/approve/', views.loan_approve, name='loan_approve'),
+    path('payroll/payslips/', views.payslip_list, name='payslip_list'),
+    path('payroll/leave-balances/', views.leave_balance_list, name='leave_balance_list'),
+    path('payslip/<int:pk>/pdf/', views.generate_payslip_pdf, name='generate_payslip_pdf'),
+    path('my-payslips/', views.my_payslips, name='my_payslips'),
+    path('my-leave-balance/', views.my_leave_balance, name='my_leave_balance'),
+    
+    # Performance Evaluation URLs
+    path('performance/', views.performance_review_list, name='performance_review_list'),
+    path('performance/create/', views.performance_review_create, name='performance_review_create'),
+    path('performance/<int:pk>/', views.performance_review_detail, name='performance_review_detail'),
+    path('performance/<int:pk>/feedback/', views.submit_feedback, name='submit_feedback'),
+    path('performance/<int:pk>/self-assessment/', views.submit_self_assessment, name='submit_self_assessment'),
+    path('performance/reports/', views.performance_reports, name='performance_reports'),
+    path('performance/goals/<int:pk>/update/', views.update_goal_progress, name='update_goal_progress'),
 ]

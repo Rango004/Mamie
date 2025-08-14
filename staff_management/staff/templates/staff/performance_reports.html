@@ -1,0 +1,174 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Performance Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Performance Reports & Analytics</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Performance Distribution -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Performance Rating Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="ratingChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Department Performance Overview</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Department</th>
+                                                    <th>Avg Rating</th>
+                                                    <th>Reviews</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for dept in dept_performance %}
+                                                <tr>
+                                                    <td>{{ dept.name }}</td>
+                                                    <td>
+                                                        {% if dept.avg_rating %}
+                                                            <span class="badge badge-{% if dept.avg_rating >= 4 %}success{% elif dept.avg_rating >= 3 %}warning{% else %}danger{% endif %}">
+                                                                {{ dept.avg_rating|floatformat:1 }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="text-muted">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ dept.review_count }}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="3" class="text-center">No data available</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Reviews -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Recent Completed Reviews</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Staff</th>
+                                                    <th>Department</th>
+                                                    <th>Supervisor</th>
+                                                    <th>Completed Date</th>
+                                                    <th>Rating</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for review in recent_reviews %}
+                                                <tr>
+                                                    <td>{{ review.staff.full_name }}</td>
+                                                    <td>{{ review.staff.department.name }}</td>
+                                                    <td>{{ review.supervisor.full_name }}</td>
+                                                    <td>{{ review.completed_date|date:"M d, Y" }}</td>
+                                                    <td>
+                                                        {% if review.overall_rating %}
+                                                            {% for i in "12345" %}
+                                                                {% if forloop.counter <= review.overall_rating %}
+                                                                    <i class="fas fa-star text-warning"></i>
+                                                                {% else %}
+                                                                    <i class="far fa-star text-muted"></i>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <span class="text-muted">Not rated</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <a href="{% url 'performance_review_detail' review.pk %}" class="btn btn-sm btn-info">
+                                                            <i class="fas fa-eye"></i> View
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr>
+                                                    <td colspan="6" class="text-center">No completed reviews found.</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Rating Distribution Chart
+const ctx = document.getElementById('ratingChart').getContext('2d');
+const ratingData = {
+    labels: [
+        {% for rating in rating_distribution %}
+            '{{ rating.overall_rating }} Star{% if rating.overall_rating != 1 %}s{% endif %}',
+        {% endfor %}
+    ],
+    datasets: [{
+        label: 'Number of Reviews',
+        data: [
+            {% for rating in rating_distribution %}
+                {{ rating.count }},
+            {% endfor %}
+        ],
+        backgroundColor: [
+            '#dc3545', // Red for 1 star
+            '#fd7e14', // Orange for 2 stars
+            '#ffc107', // Yellow for 3 stars
+            '#20c997', // Teal for 4 stars
+            '#28a745'  // Green for 5 stars
+        ],
+        borderWidth: 1
+    }]
+};
+
+const ratingChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: ratingData,
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

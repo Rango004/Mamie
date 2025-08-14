@@ -1,0 +1,76 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Performance Reviews{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">Performance Reviews</h3>
+                    {% if is_hrmo or user.staff.supervised_staff.exists %}
+                    <a href="{% url 'performance_review_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Schedule Review
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Staff</th>
+                                    <th>Supervisor</th>
+                                    <th>Review Period</th>
+                                    <th>Scheduled Date</th>
+                                    <th>Status</th>
+                                    <th>Rating</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for review in reviews %}
+                                <tr>
+                                    <td>{{ review.staff.full_name }}</td>
+                                    <td>{{ review.supervisor.full_name }}</td>
+                                    <td>{{ review.review_period_start }} to {{ review.review_period_end }}</td>
+                                    <td>{{ review.scheduled_date|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge badge-{% if review.status == 'completed' %}success{% elif review.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                            {{ review.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if review.overall_rating %}
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= review.overall_rating %}
+                                                    <i class="fas fa-star text-warning"></i>
+                                                {% else %}
+                                                    <i class="far fa-star text-muted"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Not rated</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'performance_review_detail' review.pk %}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No performance reviews found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

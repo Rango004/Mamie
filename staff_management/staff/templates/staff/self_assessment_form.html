@@ -1,0 +1,79 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Self Assessment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Self Assessment - {{ review.staff.full_name }}</h3>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong>Review Period:</strong> {{ review.review_period_start }} to {{ review.review_period_end }}<br>
+                            <strong>Instructions:</strong> Please reflect on your performance during this review period and provide honest, detailed responses.
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="achievements">Key Achievements</label>
+                                    <textarea name="achievements" id="achievements" class="form-control" rows="4" required 
+                                        placeholder="Describe your major accomplishments during this period...">{% if assessment %}{{ assessment.achievements }}{% endif %}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="skills_developed">Skills Developed</label>
+                                    <textarea name="skills_developed" id="skills_developed" class="form-control" rows="4" required 
+                                        placeholder="What new skills or competencies have you developed?">{% if assessment %}{{ assessment.skills_developed }}{% endif %}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="training_needs">Training Needs</label>
+                                    <textarea name="training_needs" id="training_needs" class="form-control" rows="4" required 
+                                        placeholder="What training or development would help you improve?">{% if assessment %}{{ assessment.training_needs }}{% endif %}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="challenges_faced">Challenges Faced</label>
+                                    <textarea name="challenges_faced" id="challenges_faced" class="form-control" rows="4" required 
+                                        placeholder="What challenges did you encounter and how did you address them?">{% if assessment %}{{ assessment.challenges_faced }}{% endif %}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="career_goals">Career Goals</label>
+                                    <textarea name="career_goals" id="career_goals" class="form-control" rows="4" required 
+                                        placeholder="What are your career aspirations and goals?">{% if assessment %}{{ assessment.career_goals }}{% endif %}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="self_rating">Self Rating</label>
+                                    <select name="self_rating" id="self_rating" class="form-control" required>
+                                        <option value="">Select Rating</option>
+                                        <option value="1" {% if assessment and assessment.self_rating == 1 %}selected{% endif %}>1 - Needs Improvement</option>
+                                        <option value="2" {% if assessment and assessment.self_rating == 2 %}selected{% endif %}>2 - Below Expectations</option>
+                                        <option value="3" {% if assessment and assessment.self_rating == 3 %}selected{% endif %}>3 - Meets Expectations</option>
+                                        <option value="4" {% if assessment and assessment.self_rating == 4 %}selected{% endif %}>4 - Exceeds Expectations</option>
+                                        <option value="5" {% if assessment and assessment.self_rating == 5 %}selected{% endif %}>5 - Outstanding</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary">
+                            {% if assessment %}Update{% else %}Submit{% endif %} Self Assessment
+                        </button>
+                        <a href="{% url 'performance_review_detail' review.pk %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,6 +4,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class School(models.Model):
     name = models.CharField(max_length=200)
@@ -652,6 +653,232 @@ class WorkflowAction(models.Model):
     class Meta:
         ordering = ['-timestamp']
 
+class UserProfile(models.Model):
+    """Extended user profile for tracking temporary passwords"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    must_change_password = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Profile for {self.user.username}"
+
+class SalaryStructure(models.Model):
+    """Salary structure for different staff categories and grades"""
+    staff_category = models.CharField(max_length=20, choices=Staff.STAFF_CATEGORIES)
+    staff_grade = models.CharField(max_length=10, choices=Staff.GRADE_CHOICES)
+    employment_type = models.CharField(max_length=20, choices=Staff.EMPLOYMENT_TYPES)
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['staff_category', 'staff_grade', 'employment_type']
+    
+    def __str__(self):
+        return f"{self.get_staff_category_display()} - {self.staff_grade} - {self.get_employment_type_display()}"
+    
+    @property
+    def gross_salary(self):
+        return self.basic_salary + self.housing_allowance + self.transport_allowance + self.medical_allowance + self.other_allowances
+
+class PayrollPeriod(models.Model):
+    """Payroll processing periods"""
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_processed = models.BooleanField(default=False)
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    processed_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"{self.name} ({self.start_date} to {self.end_date})"
+
+class Payslip(models.Model):
+    """Individual payslips for staff"""
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE)
+    payroll_period = models.ForeignKey(PayrollPeriod, on_delete=models.CASCADE)
+    
+    # Earnings
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    overtime_pay = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Deductions
+    income_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    nassit_contribution = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    loan_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Leave deductions
+    unpaid_leave_days = models.IntegerField(default=0)
+    unpaid_leave_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Calculated fields
+    gross_pay = models.DecimalField(max_digits=12, decimal_places=2)
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2)
+    net_pay = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Status
+    is_approved = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_payslips')
+    approved_date = models.DateTimeField(null=True, blank=True)
+    is_sent = models.BooleanField(default=False)
+    sent_date = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['staff', 'payroll_period']
+        ordering = ['-payroll_period__start_date']
+    
+    def __str__(self):
+        return f"{self.staff.full_name} - {self.payroll_period.name}"
+    
+    def calculate_totals(self):
+        """Calculate gross pay, total deductions, and net pay"""
+        self.gross_pay = (
+            self.basic_salary + self.housing_allowance + self.transport_allowance + 
+            self.medical_allowance + self.other_allowances + self.overtime_pay
+        )
+        self.total_deductions = (
+            self.income_tax + self.nassit_contribution + self.loan_deduction + 
+            self.other_deductions + self.unpaid_leave_deduction
+        )
+        self.net_pay = self.gross_pay - self.total_deductions
+
+class LeaveBalance(models.Model):
+    """Track leave balances for staff"""
+    staff = models.OneToOneField(Staff, on_delete=models.CASCADE)
+    annual_leave_balance = models.IntegerField(default=21)  # 21 days per year
+    sick_leave_balance = models.IntegerField(default=10)   # 10 days per year
+    maternity_leave_balance = models.IntegerField(default=90)  # 90 days
+    paternity_leave_balance = models.IntegerField(default=7)   # 7 days
+    study_leave_balance = models.IntegerField(default=0)
+    emergency_leave_balance = models.IntegerField(default=3)   # 3 days per year
+    
+    # Carry over from previous year
+    annual_leave_carried_over = models.IntegerField(default=0)
+    
+    year = models.IntegerField(default=2025)
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['staff', 'year']
+    
+    def __str__(self):
+        return f"{self.staff.full_name} - Leave Balance {self.year}"
+    
+    @property
+    def total_annual_leave(self):
+        return self.annual_leave_balance + self.annual_leave_carried_over
+
+class BenefitPlan(models.Model):
+    """Employee benefit plans"""
+    BENEFIT_TYPES = [
+        ('health', 'Health Insurance'),
+        ('life', 'Life Insurance'),
+        ('pension', 'Pension Plan'),
+        ('education', 'Education Allowance'),
+        ('transport', 'Transport Subsidy'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    benefit_type = models.CharField(max_length=20, choices=BENEFIT_TYPES)
+    description = models.TextField()
+    employer_contribution = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employee_contribution = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_mandatory = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.name} - {self.get_benefit_type_display()}"
+
+class StaffBenefit(models.Model):
+    """Staff enrollment in benefit plans"""
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE)
+    benefit_plan = models.ForeignKey(BenefitPlan, on_delete=models.CASCADE)
+    enrollment_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    employee_contribution_override = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        unique_together = ['staff', 'benefit_plan']
+    
+    def __str__(self):
+        return f"{self.staff.full_name} - {self.benefit_plan.name}"
+    
+    @property
+    def monthly_contribution(self):
+        if self.employee_contribution_override:
+            return self.employee_contribution_override
+        return self.benefit_plan.employee_contribution
+
+class LoanRecord(models.Model):
+    """Staff loan records for payroll deductions"""
+    LOAN_TYPES = [
+        ('salary_advance', 'Salary Advance'),
+        ('emergency', 'Emergency Loan'),
+        ('housing', 'Housing Loan'),
+        ('education', 'Education Loan'),
+        ('other', 'Other Loan'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE)
+    loan_type = models.CharField(max_length=20, choices=LOAN_TYPES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    repayment_months = models.IntegerField()
+    monthly_deduction = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    balance = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    application_date = models.DateField(auto_now_add=True)
+    approval_date = models.DateField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    start_deduction_date = models.DateField(null=True, blank=True)
+    end_deduction_date = models.DateField(null=True, blank=True)
+    
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.staff.full_name} - {self.get_loan_type_display()} - {self.amount}"
+    
+    def calculate_monthly_payment(self):
+        """Calculate monthly payment including interest"""
+        if self.interest_rate > 0:
+            monthly_rate = self.interest_rate / 100 / 12
+            total_amount = self.amount * (1 + (self.interest_rate / 100))
+            self.monthly_deduction = total_amount / self.repayment_months
+        else:
+            self.monthly_deduction = self.amount / self.repayment_months
+        
+        self.balance = self.amount
+        return self.monthly_deduction
+
 class Notification(models.Model):
     """System notifications for workflow events"""
     NOTIFICATION_TYPES = [
@@ -692,3 +919,88 @@ class Notification(models.Model):
             content_type=content_type,
             object_id=object_id
         )
+
+class PerformanceReview(models.Model):
+    """Performance review records"""
+    STATUS_CHOICES = [
+        ('scheduled', 'Scheduled'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled')
+    ]
+    
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='performance_reviews')
+    supervisor = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='supervised_reviews')
+    review_period_start = models.DateField()
+    review_period_end = models.DateField()
+    scheduled_date = models.DateTimeField()
+    completed_date = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    overall_rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)], null=True, blank=True)
+    strengths = models.TextField(blank=True)
+    areas_for_improvement = models.TextField(blank=True)
+    supervisor_comments = models.TextField(blank=True)
+    staff_comments = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.staff.full_name} - {self.review_period_start} to {self.review_period_end}"
+
+class PerformanceGoal(models.Model):
+    """Performance goals within reviews"""
+    STATUS_CHOICES = [
+        ('not_started', 'Not Started'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('overdue', 'Overdue')
+    ]
+    
+    review = models.ForeignKey(PerformanceReview, on_delete=models.CASCADE, related_name='goals')
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    target_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='not_started')
+    progress_percentage = models.IntegerField(default=0)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} - {self.review.staff.full_name}"
+
+class StaffFeedback(models.Model):
+    """Feedback from peers, subordinates, or self-assessment"""
+    FEEDBACK_TYPES = [
+        ('peer', 'Peer Feedback'),
+        ('subordinate', 'Subordinate Feedback'),
+        ('self', 'Self Assessment')
+    ]
+    
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='feedback_given')
+    about_staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='feedback_received')
+    review = models.ForeignKey(PerformanceReview, on_delete=models.CASCADE, related_name='feedback', null=True, blank=True)
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES)
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    comments = models.TextField()
+    anonymous = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Feedback for {self.about_staff.full_name} by {self.staff.full_name if not self.anonymous else 'Anonymous'}"
+
+class SelfAssessment(models.Model):
+    """Staff self-assessment as part of performance review"""
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='self_assessments')
+    review = models.OneToOneField(PerformanceReview, on_delete=models.CASCADE, related_name='self_assessment')
+    achievements = models.TextField()
+    challenges_faced = models.TextField()
+    skills_developed = models.TextField()
+    training_needs = models.TextField()
+    career_goals = models.TextField()
+    self_rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Self Assessment - {self.staff.full_name} - {self.review.review_period_start}"

@@ -72,6 +72,9 @@
                                 <a href="{% url 'print_id_card' staff_member.pk %}" class="btn btn-sm btn-outline-success">
                                     <i class="fas fa-id-card"></i>
                                 </a>
+                                <a href="{% url 'reset_user_password' staff_member.pk %}" class="btn btn-sm btn-outline-warning" title="Reset Password">
+                                    <i class="fas fa-key"></i>
+                                </a>
                                 <a href="{% url 'staff_delete' staff_member.pk %}" class="btn btn-sm btn-outline-danger">
                                     <i class="fas fa-trash"></i>
                                 </a>

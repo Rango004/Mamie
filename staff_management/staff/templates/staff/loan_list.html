@@ -1,0 +1,83 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-hand-holding-usd"></i> Loan Management</h1>
+    <div>
+        <a href="{% url 'loan_create' %}" class="btn btn-primary me-2">
+            <i class="fas fa-plus"></i> Create Loan
+        </a>
+        <a href="{% url 'payroll_dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Payroll
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if loans %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Staff</th>
+                        <th>Loan Type</th>
+                        <th>Amount</th>
+                        <th>Interest Rate</th>
+                        <th>Monthly Deduction</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                        <th>Application Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in loans %}
+                    <tr>
+                        <td>
+                            <strong>{{ loan.staff.full_name }}</strong><br>
+                            <small class="text-muted">{{ loan.staff.staff_id }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ loan.get_loan_type_display }}</span>
+                        </td>
+                        <td>Le {{ loan.amount|floatformat:2 }}</td>
+                        <td>{{ loan.interest_rate }}%</td>
+                        <td>Le {{ loan.monthly_deduction|floatformat:2 }}</td>
+                        <td>Le {{ loan.balance|floatformat:2 }}</td>
+                        <td>
+                            {% if loan.status == 'pending' %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% elif loan.status == 'approved' %}
+                                <span class="badge bg-info">Approved</span>
+                            {% elif loan.status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif loan.status == 'completed' %}
+                                <span class="badge bg-secondary">Completed</span>
+                            {% elif loan.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ loan.application_date|date:"M d, Y" }}</td>
+                        <td>
+                            {% if loan.status == 'pending' %}
+                                <a href="{% url 'loan_approve' loan.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-check"></i> Review
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Loans Found</h5>
+            <p class="text-muted">Create loan records for staff members who need financial assistance.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

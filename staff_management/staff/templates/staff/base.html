@@ -331,7 +331,6 @@
                             <i class="fas fa-building"></i> Departments
                         </a>
                     </li>
-                    {% if user.is_superuser or user.hrmo %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-upload"></i> Bulk Upload
@@ -362,8 +361,18 @@
                             <i class="fas fa-user-shield"></i> HRMO Management
                         </a>
                     </li>
-                    {% endif %}
+                    <hr>
                     <li class="nav-item">
+                        <a class="nav-link" href="{% url 'payroll_dashboard' %}">
+                            <i class="fas fa-money-bill-wave"></i> Payroll Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if not user.is_superuser and not user.hrmo %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'my_payslips' %}">
+                            <i class="fas fa-file-invoice-dollar"></i> My Payslips
+                        </a>
                     </li>
                     {% endif %}
                     <li class="nav-item">
@@ -376,6 +385,18 @@
                             <i class="fas fa-bullhorn"></i> Announcements
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'performance_review_list' %}">
+                            <i class="fas fa-chart-line"></i> Performance Reviews
+                        </a>
+                    </li>
+                    {% if user.is_superuser or user.hrmo %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'performance_reports' %}">
+                            <i class="fas fa-analytics"></i> Performance Reports
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if not user.is_superuser and not user.hrmo %}
                     <hr>
                     <li class="nav-item">

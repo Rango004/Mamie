@@ -1,0 +1,353 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Performance Review - {{ review.staff.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Performance Review - {{ review.staff.full_name }}</h3>
+                    <div class="card-tools">
+                        {% if review.status == 'scheduled' and can_edit %}
+                        <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#completeReviewModal">
+                            <i class="fas fa-check"></i> Complete Review
+                        </button>
+                        {% endif %}
+                        {% if review.staff.email == user.email and review.status != 'cancelled' %}
+                        <a href="{% url 'submit_self_assessment' review.pk %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-user-edit"></i> Self Assessment
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'submit_feedback' review.pk %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-comment"></i> Submit Feedback
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Review Details</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Staff:</th>
+                                    <td>{{ review.staff.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Department:</th>
+                                    <td>{{ review.staff.department.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Position:</th>
+                                    <td>{{ review.staff.position }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Supervisor:</th>
+                                    <td>{{ review.supervisor.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Review Period:</th>
+                                    <td>{{ review.review_period_start }} to {{ review.review_period_end }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Scheduled Date:</th>
+                                    <td>{{ review.scheduled_date|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge badge-{% if review.status == 'completed' %}success{% elif review.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                            {{ review.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% if review.overall_rating %}
+                                <tr>
+                                    <th>Overall Rating:</th>
+                                    <td>
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= review.overall_rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                        ({{ review.overall_rating }}/5)
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            {% if review.status == 'completed' %}
+                            <h5>Review Summary</h5>
+                            {% if review.strengths %}
+                            <div class="mb-3">
+                                <strong>Strengths:</strong>
+                                <p>{{ review.strengths }}</p>
+                            </div>
+                            {% endif %}
+                            {% if review.areas_for_improvement %}
+                            <div class="mb-3">
+                                <strong>Areas for Improvement:</strong>
+                                <p>{{ review.areas_for_improvement }}</p>
+                            </div>
+                            {% endif %}
+                            {% if review.supervisor_comments %}
+                            <div class="mb-3">
+                                <strong>Supervisor Comments:</strong>
+                                <p>{{ review.supervisor_comments }}</p>
+                            </div>
+                            {% endif %}
+                            {% if review.staff_comments %}
+                            <div class="mb-3">
+                                <strong>Staff Comments:</strong>
+                                <p>{{ review.staff_comments }}</p>
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Goals Section -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Performance Goals</h5>
+                                    {% if can_edit %}
+                                    <button type="button" class="btn btn-sm btn-primary float-right" data-toggle="modal" data-target="#addGoalModal">
+                                        <i class="fas fa-plus"></i> Add Goal
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body">
+                                    {% for goal in goals %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <h6>{{ goal.title }}</h6>
+                                                    <p>{{ goal.description }}</p>
+                                                    <small class="text-muted">Target Date: {{ goal.target_date }}</small>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="progress mb-2">
+                                                        <div class="progress-bar" style="width: {{ goal.progress_percentage }}%">
+                                                            {{ goal.progress_percentage }}%
+                                                        </div>
+                                                    </div>
+                                                    <span class="badge badge-{% if goal.status == 'completed' %}success{% elif goal.status == 'overdue' %}danger{% elif goal.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                                        {{ goal.get_status_display }}
+                                                    </span>
+                                                    {% if can_edit %}
+                                                    <a href="{% url 'update_goal_progress' goal.pk %}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit"></i> Update
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted">No goals set for this review.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Self Assessment Section -->
+                    {% if self_assessment %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Self Assessment</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <strong>Achievements:</strong>
+                                                <p>{{ self_assessment.achievements }}</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>Skills Developed:</strong>
+                                                <p>{{ self_assessment.skills_developed }}</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>Self Rating:</strong>
+                                                <p>
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= self_assessment.self_rating %}
+                                                            <i class="fas fa-star text-warning"></i>
+                                                        {% else %}
+                                                            <i class="far fa-star text-muted"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    ({{ self_assessment.self_rating }}/5)
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <strong>Challenges Faced:</strong>
+                                                <p>{{ self_assessment.challenges_faced }}</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>Training Needs:</strong>
+                                                <p>{{ self_assessment.training_needs }}</p>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>Career Goals:</strong>
+                                                <p>{{ self_assessment.career_goals }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Feedback Section -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Feedback</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% for fb in feedback %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <h6>
+                                                        {% if fb.anonymous %}
+                                                            Anonymous {{ fb.get_feedback_type_display }}
+                                                        {% else %}
+                                                            {{ fb.staff.full_name }} - {{ fb.get_feedback_type_display }}
+                                                        {% endif %}
+                                                    </h6>
+                                                    <p>{{ fb.comments }}</p>
+                                                    <small class="text-muted">{{ fb.created_at|date:"M d, Y H:i" }}</small>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="text-right">
+                                                        {% for i in "12345" %}
+                                                            {% if forloop.counter <= fb.rating %}
+                                                                <i class="fas fa-star text-warning"></i>
+                                                            {% else %}
+                                                                <i class="far fa-star text-muted"></i>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                        <br>
+                                                        <small class="text-muted">{{ fb.rating }}/5</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted">No feedback submitted yet.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Review Modal -->
+{% if review.status == 'scheduled' and can_edit %}
+<div class="modal fade" id="completeReviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="complete_review">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Performance Review</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="overall_rating">Overall Rating</label>
+                        <select name="overall_rating" id="overall_rating" class="form-control" required>
+                            <option value="">Select Rating</option>
+                            <option value="1">1 - Poor</option>
+                            <option value="2">2 - Below Average</option>
+                            <option value="3">3 - Average</option>
+                            <option value="4">4 - Good</option>
+                            <option value="5">5 - Excellent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="strengths">Strengths</label>
+                        <textarea name="strengths" id="strengths" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="areas_for_improvement">Areas for Improvement</label>
+                        <textarea name="areas_for_improvement" id="areas_for_improvement" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="supervisor_comments">Supervisor Comments</label>
+                        <textarea name="supervisor_comments" id="supervisor_comments" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="staff_comments">Staff Comments</label>
+                        <textarea name="staff_comments" id="staff_comments" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Complete Review</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Add Goal Modal -->
+{% if can_edit %}
+<div class="modal fade" id="addGoalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_goal">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Performance Goal</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="goal_title">Goal Title</label>
+                        <input type="text" name="goal_title" id="goal_title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="goal_description">Description</label>
+                        <textarea name="goal_description" id="goal_description" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="target_date">Target Date</label>
+                        <input type="date" name="target_date" id="target_date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Add Goal</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

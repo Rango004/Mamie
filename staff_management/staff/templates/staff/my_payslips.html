@@ -1,0 +1,117 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-file-invoice-dollar"></i> My Payslips</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if payslips %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Pay Period</th>
+                        <th>Period Dates</th>
+                        <th>Gross Pay</th>
+                        <th>Deductions</th>
+                        <th>Net Pay</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payslip in payslips %}
+                    <tr>
+                        <td>{{ payslip.payroll_period.name }}</td>
+                        <td>{{ payslip.payroll_period.start_date|date:"M d" }} - {{ payslip.payroll_period.end_date|date:"M d, Y" }}</td>
+                        <td>Le {{ payslip.gross_pay|floatformat:2 }}</td>
+                        <td>Le {{ payslip.total_deductions|floatformat:2 }}</td>
+                        <td><strong>Le {{ payslip.net_pay|floatformat:2 }}</strong></td>
+                        <td>
+                            {% if payslip.is_approved %}
+                                <span class="badge bg-success">Approved</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'generate_payslip_pdf' payslip.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-file-pdf"></i> Download PDF
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Payslips Available</h5>
+            <p class="text-muted">Your payslips will appear here once payroll is processed.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if payslips %}
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-pie"></i> Latest Payslip Breakdown</h6>
+            </div>
+            <div class="card-body">
+                {% with latest=payslips.0 %}
+                <div class="row">
+                    <div class="col-6">
+                        <h6 class="text-success">Earnings</h6>
+                        <ul class="list-unstyled">
+                            <li>Basic Salary: Le {{ latest.basic_salary|floatformat:2 }}</li>
+                            <li>Housing: Le {{ latest.housing_allowance|floatformat:2 }}</li>
+                            <li>Transport: Le {{ latest.transport_allowance|floatformat:2 }}</li>
+                            <li>Medical: Le {{ latest.medical_allowance|floatformat:2 }}</li>
+                            <li>Other: Le {{ latest.other_allowances|floatformat:2 }}</li>
+                        </ul>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-danger">Deductions</h6>
+                        <ul class="list-unstyled">
+                            <li>Income Tax: Le {{ latest.income_tax|floatformat:2 }}</li>
+                            <li>NASSIT: Le {{ latest.nassit_contribution|floatformat:2 }}</li>
+                            <li>Loans: Le {{ latest.loan_deduction|floatformat:2 }}</li>
+                            <li>Other: Le {{ latest.other_deductions|floatformat:2 }}</li>
+                        </ul>
+                    </div>
+                </div>
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Payroll Information</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Staff ID:</strong> {{ staff.staff_id }}</p>
+                <p><strong>Department:</strong> {{ staff.department.name }}</p>
+                <p><strong>Position:</strong> {{ staff.position }}</p>
+                <p><strong>Employment Type:</strong> {{ staff.get_employment_type_display }}</p>
+                <p><strong>Grade:</strong> {{ staff.staff_grade }}</p>
+                
+                <div class="alert alert-info mt-3">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        For payroll inquiries, contact HR at hr@university.edu
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
